@@ -38,6 +38,9 @@
   th { color:var(--muted); font-size:12px; }
   .tag { font-size:11px; padding:2px 7px; border-radius:20px; }
   .tag.profit { background:#dbeafe; color:#1e40af; } .tag.monitor { background:#fef3c7; color:#92400e; } .tag.both { background:#d1fae5; color:#065f46; }
+  #gtDashTbl .gt-grp { text-align:center; font-weight:700; background:#eef2ff; color:var(--ink); }
+  #gtDashTbl .gt-prev { color:var(--bad); font-weight:600; }
+  #gtDashTbl th { background:#f8fafc; }
   .over { color:var(--bad); font-weight:600; } .good { color:var(--ok); }
   .btn { background:var(--brand); color:#fff; border:0; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; }
   .btn.ghost { background:#eef2f7; color:var(--ink); }
@@ -118,6 +121,12 @@
     <h2>🧩 ค่าใช้จ่ายโปรเจคเสริม (ปีที่เลือก)</h2>
     <table id="sideTbl"><thead><tr><th>เดือน</th><th>โปรเจค</th><th style="text-align:right">จำนวนเงิน</th><th>หมายเหตุ</th></tr></thead><tbody></tbody></table>
     <div id="sideTotal" style="text-align:right;margin-top:8px;font-weight:700;font-size:14px"></div>
+  </div>
+
+  <div class="card">
+    <h2>🎯 เป้า vs ยอดจริง (Grand Total · ปีที่เลือก)</h2>
+    <table id="gtDashTbl"><thead></thead><tbody></tbody></table>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">ยอดจริง = ผลรวมยอดขายรายเดือน • % = จริง ÷ เป้า • คอลัมน์แดง = ยอดจริงปีก่อน • ตั้งเป้าได้ที่หน้า "เป้า vs จริง"</p>
   </div>
 
 </div>
@@ -236,6 +245,7 @@ function render(){
   renderPnL(y);
   renderMonitorAds(y);
   renderSideExpense(y);
+  renderTargetGrand(y);
   renderCfgEditors(y);
 }
 
@@ -352,6 +362,29 @@ function renderPnL(y){
     row('9. คอมให้ร้านค้า','comm')+
     row('รายได้ (ยอดขายหลังลด)','revenue',{top:true,hl:true,note:'ก่อนหักต้นทุน'})+
     row('คงเหลือจริง','net',{bold:true});
+}
+function renderTargetGrand(y){
+  const th=$('#gtDashTbl thead'), tb=$('#gtDashTbl tbody'); if(!tb) return;
+  const yPrev=String(Number(y)-1);
+  const BR=PNL_BRANDS, EX=BR.filter(b=>b!=='Giftbox');
+  const tgts=DB.targets||[];
+  const tgt=(b,m)=>{ const r=tgts.find(x=>String(x.year)===String(y)&&x.brand===b&&Number(x.month)===m); return r?Number(r.target||0):0; };
+  const actY={}, actP={}; BR.forEach(b=>{ actY[b]=monthly(DB.sales,y,b,'sales'); actP[b]=monthly(DB.sales,yPrev,b,'sales'); });
+  const pc=(a,t)=>t>0?Math.round(a/t*100):null;
+  const pcS=p=>p==null?'-':`<span style="font-weight:700;color:${p>=100?'var(--ok)':(p>=80?'var(--warn)':'var(--bad)')}">${p}%</span>`;
+  th.innerHTML='<tr><th rowspan="2">เดือน</th><th class="gt-grp" colspan="4">ไม่รวม Giftbox</th><th class="gt-grp" colspan="4">รวม Giftbox</th></tr>'+
+    `<tr><th>ปีก่อน (${yPrev})</th><th>เป้า</th><th>จริง</th><th>%</th><th>ปีก่อน (${yPrev})</th><th>เป้า</th><th>จริง</th><th>%</th></tr>`;
+  let rows='',sTx=0,sAx=0,sPx=0,sT=0,sA=0,sP=0;
+  for(let m=1;m<=12;m++){
+    const tEx=EX.reduce((a,b)=>a+tgt(b,m),0), aEx=EX.reduce((a,b)=>a+actY[b][m-1],0), pEx=EX.reduce((a,b)=>a+actP[b][m-1],0);
+    const tAll=BR.reduce((a,b)=>a+tgt(b,m),0), aAll=BR.reduce((a,b)=>a+actY[b][m-1],0), pAll=BR.reduce((a,b)=>a+actP[b][m-1],0);
+    sTx+=tEx;sAx+=aEx;sPx+=pEx;sT+=tAll;sA+=aAll;sP+=pAll;
+    rows+=`<tr><td>${MONTHS_TH[m-1]}</td><td class="gt-prev">฿${baht(pEx)}</td><td>฿${baht(tEx)}</td><td>฿${baht(aEx)}</td><td>${pcS(pc(aEx,tEx))}</td>`+
+      `<td class="gt-prev">฿${baht(pAll)}</td><td>฿${baht(tAll)}</td><td>฿${baht(aAll)}</td><td>${pcS(pc(aAll,tAll))}</td></tr>`;
+  }
+  rows+=`<tr style="font-weight:800;border-top:2px solid var(--line);background:#f8fafc"><td>รวมทั้งปี</td><td class="gt-prev">฿${baht(sPx)}</td><td>฿${baht(sTx)}</td><td>฿${baht(sAx)}</td><td>${pcS(pc(sAx,sTx))}</td>`+
+    `<td class="gt-prev">฿${baht(sP)}</td><td>฿${baht(sT)}</td><td>฿${baht(sA)}</td><td>${pcS(pc(sA,sT))}</td></tr>`;
+  tb.innerHTML=rows;
 }
 function renderSideExpense(y){
   const tb=$('#sideTbl tbody'); tb.innerHTML='';
