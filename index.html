@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='16' width='4' height='9' rx='1' fill='%23ffffff'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='%23ffffff'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='%23bfdbfe'/%3E%3C/svg%3E">
+<title>Dashboard | Folio Budget</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --ink:#1f2a37; --muted:#6b7280;
+          --brand:#2563eb; --ok:#059669; --warn:#d97706; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0 8px 0 0; }
+  .nav { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .navbtn { display:inline-flex; align-items:center; gap:6px; color:#fff; text-decoration:none; font-size:14px; font-weight:600;
+            background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:7px 14px; border-radius:999px; transition:.15s; cursor:pointer; }
+  .navbtn:hover { background:rgba(255,255,255,.28); transform:translateY(-1px); }
+  .navbtn.active { background:#fff; color:var(--brand); border-color:#fff; }
+  .navbtn.primary { background:#fff; color:var(--brand); border-color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .navbtn.primary:hover { background:#f0f6ff; }
+  .wrap { max-width:1200px; margin:0 auto; padding:20px; }
+  .bar { display:flex; gap:12px; align-items:end; flex-wrap:wrap; background:var(--card); padding:16px; border-radius:12px; border:1px solid var(--line); margin-bottom:18px; }
+  .bar label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  select { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:18px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .kpi .l { font-size:12px; color:var(--muted); }
+  .kpi .v { font-size:24px; font-weight:700; margin-top:6px; }
+  .kpi .s { font-size:12px; color:var(--muted); margin-top:4px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; overflow-x:auto; }
+  .card h2 { font-size:15px; margin:0 0 12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { padding:8px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child,td:first-child { text-align:left; }
+  th { color:var(--muted); font-size:12px; }
+  .tag { font-size:11px; padding:2px 7px; border-radius:20px; }
+  .tag.profit { background:#dbeafe; color:#1e40af; } .tag.monitor { background:#fef3c7; color:#92400e; } .tag.both { background:#d1fae5; color:#065f46; }
+  .over { color:var(--bad); font-weight:600; } .good { color:var(--ok); }
+  .btn { background:var(--brand); color:#fff; border:0; padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; }
+  .btn.ghost { background:#eef2f7; color:var(--ink); }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:7px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .overlay { position:fixed; inset:0; background:rgba(15,23,42,.5); display:none; align-items:flex-start; justify-content:center; z-index:50; padding:30px 16px; overflow:auto; }
+  .overlay.show { display:flex; }
+  .modal { background:var(--card); border-radius:14px; padding:22px; max-width:920px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .modal-head { display:flex; align-items:center; margin-bottom:8px; }
+  .modal-head h2 { margin:0; font-size:18px; }
+  .modal-close { margin-left:auto; background:#eef2f7; border:0; width:32px; height:32px; border-radius:8px; font-size:18px; cursor:pointer; }
+  .switch { position:relative; display:inline-block; width:42px; height:22px; }
+  .switch input { opacity:0; width:0; height:0; }
+  .slider { position:absolute; inset:0; background:#cbd5e1; border-radius:22px; transition:.2s; cursor:pointer; }
+  .slider:before { content:""; position:absolute; height:16px; width:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+  .switch input:checked + .slider { background:var(--ok); }
+  .switch input:checked + .slider:before { transform:translateX(20px); }
+  .msg { padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; display:none; }
+  .msg.ok{background:#d1fae5;color:#065f46;display:block;} .msg.err{background:#fee2e2;color:#991b1b;display:block;}
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; } @media(max-width:800px){.grid2{grid-template-columns:1fr;}}
+  details summary { cursor:pointer; font-weight:600; }
+  input.cfg { width:80px; text-align:right; padding:5px; border:1px solid var(--line); border-radius:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Folio Budget</h1>
+  <nav class="nav">
+    <a class="navbtn active" href="index.html">📊 Dashboard</a>
+    <a class="navbtn" href="target.html">🎯 เป้า vs จริง</a>
+    <a class="navbtn" href="scratch.html">🗒️ พักข้อมูลช่องทาง</a>
+    <a class="navbtn" href="adsdoc.html">💸 ค่าโฆษณาจริง</a>
+    <!-- เพิ่มเมนูหน้าใหม่ตรงนี้ -->
+  </nav>
+  <div class="nav" style="margin-left:auto">
+    <span id="userTag" style="color:#dbeafe;font-size:13px"></span>
+    <a class="navbtn primary" href="form.html">📝 กรอกข้อมูลรายเดือน</a>
+    <a href="#" id="gearBtn" class="navbtn">⚙️ ตั้งค่า</a>
+    <a href="#" id="logoutBtn" class="navbtn" title="ออกจากระบบ">🚪 ออก</a>
+  </div>
+</header>
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+  <div class="bar">
+    <div><label>ปี</label><select id="year"></select></div>
+    <div><label>แบรนด์</label><select id="brand"><option value="ALL">ทุกแบรนด์</option></select></div>
+    <div style="flex:1"></div>
+    <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
+    <button class="btn ghost" id="reload">🔄 รีเฟรช</button>
+  </div>
+
+  <div id="incompleteBanner" style="display:none;background:#dc2626;color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:18px;box-shadow:0 4px 14px rgba(220,38,38,.3)">
+    <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px">⚠️ ข้อมูลปีนี้ยังไม่สมบูรณ์</div>
+    <div style="font-size:13px;margin-top:6px;opacity:.95">ปีนี้ <b>ขาดข้อมูลส่วนลดการขาย</b> (ส่วนลด/ราคาเต็มยังไม่ได้นำเข้า) — ตัวเลขกำไรและส่วนลด% อาจไม่ครบถ้วน • ข้อมูลสมบูรณ์เต็มรูปแบบเริ่มที่ปี 2024 เป็นต้นไป • ไว้พัฒนาเพิ่มถ้าต้องการ</div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid2">
+    <div class="card"><h2>ยอดขายรายเดือน</h2><canvas id="chSales" height="160"></canvas></div>
+    <div class="card"><h2>ค่าโฆษณา vs ยอดขาย</h2><canvas id="chAds" height="160"></canvas></div>
+  </div>
+
+  <div class="card"><h2>เทียบยอดขายรายปี</h2><canvas id="chYear" height="90"></canvas></div>
+
+  <div class="card">
+    <h2>สรุปยอดขาย-กำไร แยกแบรนด์ (P&L · ปีที่เลือก)</h2>
+    <table id="pnlTbl"><thead></thead><tbody></tbody></table>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">ต้นทุน% ตั้งในตั้งค่า • GP กรอกเป็น% รายเดือนในฟอร์ม (ระบบแปลงเป็นบาทอัตโนมัติ) • ค่าเช่า/Influencer/Collaborate กรอกเป็นบาทในฟอร์มรายเดือน</p>
+  </div>
+
+  <div class="card">
+    <h2>ค่าโฆษณาแบรนด์ Monitor (ไม่มีรายได้แยก)</h2>
+    <table id="monAdsTbl"><thead><tr><th>แบรนด์</th><th>ค่าโฆษณา</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>🧩 ค่าใช้จ่ายโปรเจคเสริม (ปีที่เลือก)</h2>
+    <table id="sideTbl"><thead><tr><th>เดือน</th><th>โปรเจค</th><th style="text-align:right">จำนวนเงิน</th><th>หมายเหตุ</th></tr></thead><tbody></tbody></table>
+    <div id="sideTotal" style="text-align:right;margin-top:8px;font-weight:700;font-size:14px"></div>
+  </div>
+
+</div>
+
+<div class="overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>⚙️ ตั้งค่า แบรนด์ & ช่องทาง</h2>
+      <button class="modal-close" id="closeCfg">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 14px">แก้แล้วกระทบเฉพาะการกรอกครั้งถัดไป • ค่าคอม Marketplace กรอกในฟอร์มรายเดือน</p>
+    <h2 style="font-size:15px">🎯 แบรนด์ & Target (ปีที่เลือก)</h2>
+    <table id="cfgTbl"><thead><tr><th>แบรนด์</th><th>ประเภท</th><th>ต้นทุน%</th><th>active</th></tr></thead><tbody></tbody></table>
+    <button class="btn ghost" id="addBrand" style="margin-top:8px;font-size:12px">+ เพิ่มแบรนด์</button>
+    <p style="font-size:12px;color:var(--muted)">ต้นทุน% ใช้คำนวณ P&L • GP กรอกรายเดือนในฟอร์ม • profit = เข้า P&L · monitor = แอดอย่างเดียว · both = แสดง 2 ที่</p>
+    <h2 style="font-size:15px;margin-top:18px">📡 ช่องทางโฆษณา / Platform</h2>
+    <table id="chTbl"><thead><tr><th>ช่องทาง</th><th>Marketplace (คิด%)</th><th>active</th><th>ลำดับ</th></tr></thead><tbody></tbody></table>
+    <button class="btn ghost" id="addCh" style="margin-top:8px;font-size:12px">+ เพิ่มช่องทาง</button>
+    <div style="margin-top:16px"><button class="btn" id="saveCfg">💾 บันทึกการตั้งค่า</button></div>
+
+    <div id="usersSection" style="display:none;margin-top:26px;border-top:2px solid var(--line);padding-top:16px">
+      <h2 style="font-size:15px">👥 จัดการผู้ใช้ (admin)</h2>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px">role: <b>admin</b>=ทุกอย่าง · <b>editor</b>=กรอกข้อมูล/เป้า · <b>viewer</b>=ดูอย่างเดียว • ช่อง "รหัสใหม่" กรอกเมื่อต้องการเปลี่ยนรหัส (เว้นว่าง=คงเดิม)</p>
+      <table id="usersTbl"><thead><tr><th>ชื่อผู้ใช้</th><th>ชื่อ</th><th>สิทธิ์</th><th>ใช้งาน</th><th>รหัสใหม่</th><th></th></tr></thead><tbody></tbody></table>
+      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:end;background:#f8fafc;padding:12px;border-radius:8px">
+        <div><label style="font-size:11px;color:var(--muted)">ชื่อผู้ใช้ใหม่</label><br><input id="nuUser" style="width:120px"></div>
+        <div><label style="font-size:11px;color:var(--muted)">ชื่อ</label><br><input id="nuName" style="width:120px"></div>
+        <div><label style="font-size:11px;color:var(--muted)">สิทธิ์</label><br><select id="nuRole" style="padding:7px"><option value="viewer">viewer</option><option value="editor">editor</option><option value="admin">admin</option></select></div>
+        <div><label style="font-size:11px;color:var(--muted)">รหัสผ่าน</label><br><input id="nuPass" type="password" style="width:120px"></div>
+        <button class="btn ghost" id="addUserBtn" style="font-size:13px">+ เพิ่มผู้ใช้</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const $ = s=>document.querySelector(s);
+let DB={config:[],sales:[],ads:[],side:[],channels:[]};
+let chSales,chAds,chYear;
+const baht=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:2});
+const pct=v=>(v*100).toFixed(1)+'%';
+// ตัวเลือกร่วม: ชี้เมาส์โชว์ทุกชุดข้อมูล (ยอดขาย+ค่าแอด) พร้อมกัน + ใส่ ฿
+const COMMON={
+  interaction:{mode:'index',intersect:false},
+  plugins:{tooltip:{callbacks:{label:c=>c.dataset.label+': ฿'+baht(c.parsed.y)}}},
+  scales:{y:{ticks:{callback:v=>baht(v)}}}
+};
+function showMsg(t,cls){const m=$('#msg');m.textContent=t;m.className='msg '+cls;}
+
+function years(){ return [...new Set(DB.sales.map(r=>+r.year).concat(DB.ads.map(r=>+r.year)))].sort((a,b)=>b-a); }
+function brandsAll(){ return [...new Set(DB.config.map(c=>c.brand))]; }
+// แบรนด์ที่เข้า P&L = PNL_BRANDS (ตั้งต้น) + แบรนด์ active ที่ type=profit หรือ both
+function pnlBrandList(){
+  const set=new Set(PNL_BRANDS);
+  DB.config.filter(c=>String(c.active).toUpperCase()==='TRUE'&&(c.type==='profit'||c.type==='both')).forEach(c=>set.add(c.brand));
+  return [...set];
+}
+function cfgFor(brand,year){ return DB.config.find(c=>c.brand===brand&&String(c.year)===String(year)) || DB.config.find(c=>c.brand===brand) || {}; }
+
+function sumSales(year,brand){ return DB.sales.filter(r=>String(r.year)===String(year)&&(brand==='ALL'||r.brand===brand)).reduce((a,r)=>a+Number(r.sales||0),0); }
+function sumAds(year,brand){ return DB.ads.filter(r=>String(r.year)===String(year)&&(brand==='ALL'||r.brand===brand)).reduce((a,r)=>a+Number(r.amount||0),0); }
+
+function monthly(arr,year,brand,valKey){
+  const out=Array(12).fill(0);
+  arr.filter(r=>String(r.year)===String(year)&&(brand==='ALL'||r.brand===brand)).forEach(r=>{
+    const m=Number(r.month); if(m>=1&&m<=12) out[m-1]+=Number(r[valKey]||0);
+  });
+  return out;
+}
+
+function render(){
+  const y=$('#year').value, b=$('#brand').value;
+  const yPrev=String(Number(y)-1);
+  // ป้ายเตือน: ปีที่ยังไม่มีข้อมูลส่วนลด (data-driven — migrate เพิ่มแล้วป้ายหายเอง)
+  const yearHasDisc=DB.sales.some(r=>String(r.year)===String(y)&&Number(r.discount||0)>0);
+  $('#incompleteBanner').style.display=yearHasDisc?'none':'block';
+  const sales=sumSales(y,b), ads=sumAds(y,b);
+  const salesM=monthly(DB.sales,y,b,'sales');
+  const adsM=monthly(DB.ads,y,b,'amount');
+  const salesPrevM=monthly(DB.sales,yPrev,b,'sales');
+  const adsPrevM=monthly(DB.ads,yPrev,b,'amount');
+
+  // นับเดือนที่มีข้อมูลในปีปัจจุบัน
+  const monthsWithData=salesM.filter(v=>v>0).length||1;
+  const salesPrevSame=salesPrevM.slice(0,monthsWithData).reduce((a,v)=>a+v,0);
+  const adsPrevSame=adsPrevM.slice(0,monthsWithData).reduce((a,v)=>a+v,0);
+  const salesChg=salesPrevSame>0?((sales-salesPrevSame)/salesPrevSame*100):null;
+  const adsChg=adsPrevSame>0?((ads-adsPrevSame)/adsPrevSame*100):null;
+
+  const rows=DB.sales.filter(r=>String(r.year)===y&&(b==='ALL'||r.brand===b));
+  const fp=rows.reduce((a,r)=>a+Number(r.full_price||0),0);
+  const ds=rows.reduce((a,r)=>a+Number(r.discount||0),0);
+  const disPct=fp>0?ds/fp:0;
+  const adsPct=sales>0?ads/sales:0;
+  const gpTotal=pnlBrandList().reduce((a,br)=>a+brandAgg(br,y).gp,0);
+
+  const chgTxt=(v,inv)=>{
+    if(v===null) return '';
+    const good=inv?(v<0):(v>0);
+    const col=good?'var(--ok)':'var(--bad)';
+    return ` <span style="color:${col};font-size:12px">${v>0?'+':''}${v.toFixed(1)}%</span>`;
+  };
+
+  $('#kpis').innerHTML=[
+    ['ยอดขายรวม','฿'+baht(sales),`ปีก่อน ฿${baht(salesPrevSame)} (${monthsWithData} เดือนเท่า)${chgTxt(salesChg)}`],
+    ['ค่าโฆษณารวม','฿'+baht(ads),`ปีก่อน ฿${baht(adsPrevSame)} (${monthsWithData} เดือนเท่า)${chgTxt(adsChg,true)}`],
+    ['ค่าแอด % ต่อยอด',sales>0?pct(adsPct):'—',''],
+    ['GP %',sales>0?pct(gpTotal/sales):'—',''],
+    ['ส่วนลดเฉลี่ย %',fp>0?pct(disPct):'—',fp>0?'':'(ปีเก่ายังไม่มีข้อมูลส่วนลด)'],
+  ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
+
+  drawSales(salesM, salesPrevM, adsM);
+  drawAds(salesM, adsM);
+  drawYear(b);
+  renderPnL(y);
+  renderMonitorAds(y);
+  renderSideExpense(y);
+  renderCfgEditors(y);
+}
+
+function drawSales(data, prevData){
+  const ctx=$('#chSales'); if(chSales)chSales.destroy();
+  const yoy=data.map((s,i)=>s>0&&prevData[i]>0?+((s-prevData[i])/prevData[i]*100).toFixed(1):null);
+  const yoyPlugin={id:'yoypct',afterDatasetsDraw(chart){
+    const c=chart.ctx,meta=chart.getDatasetMeta(0);
+    meta.data.forEach((bar,i)=>{
+      if(yoy[i]===null)return;
+      const good=yoy[i]>=0;
+      c.save();c.fillStyle=good?'#059669':'#dc2626';c.font='bold 10px Segoe UI,sans-serif';
+      c.textAlign='center';c.fillText((good?'+':'')+yoy[i]+'%',bar.x,bar.y-5);c.restore();
+    });
+  }};
+  chSales=new Chart(ctx,{type:'bar',data:{labels:MONTHS_TH,datasets:[
+    {label:'ยอดขาย',data,backgroundColor:'#2563eb',order:1},
+    {type:'line',label:'ปีก่อน',data:prevData,borderColor:'#94a3b8',borderDash:[4,3],tension:.3,pointRadius:3,fill:false,order:0}
+  ]},options:{...COMMON,plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}},tooltip:COMMON.plugins.tooltip}},plugins:[yoyPlugin]});
+}
+function drawAds(sales,ads){
+  const ctx=$('#chAds'); if(chAds)chAds.destroy();
+  const pv=sales.map((s,i)=>s>0&&ads[i]>0?+(ads[i]/s*100).toFixed(1):null);
+  const colors='#bfdbfe';
+  const adsPctPlugin2={id:'adspct2',afterDatasetsDraw(chart){
+    const c=chart.ctx,meta=chart.getDatasetMeta(0);
+    meta.data.forEach((bar,i)=>{
+      if(!pv[i])return;
+      c.save();c.fillStyle='#374151';c.font='bold 10px Segoe UI,sans-serif';
+      c.textAlign='center';c.fillText(pv[i]+'%',bar.x,bar.y-5);c.restore();
+    });
+  }};
+  chAds=new Chart(ctx,{data:{labels:MONTHS_TH,datasets:[
+    {type:'bar',label:'ยอดขาย',data:sales,backgroundColor:colors},
+    {type:'line',label:'ค่าแอด',data:ads,borderColor:'#dc2626',backgroundColor:'#dc2626',tension:.3}
+  ]},options:COMMON,plugins:[adsPctPlugin2]});
+}
+function drawYear(b){
+  const ctx=$('#chYear'); if(chYear)chYear.destroy();
+  const ys=years().slice().sort((a,b)=>a-b);
+  const sv=ys.map(y=>sumSales(y,b)), av=ys.map(y=>sumAds(y,b));
+  const pv=ys.map((_,i)=>sv[i]>0?+(av[i]/sv[i]*100).toFixed(1):null);
+  const pctPlugin={id:'pct',afterDatasetsDraw(chart){
+    const c=chart.ctx, meta=chart.getDatasetMeta(0);
+    meta.data.forEach((bar,i)=>{
+      if(!pv[i]) return;
+      c.save(); c.fillStyle='#d97706'; c.font='bold 11px Segoe UI,sans-serif';
+      c.textAlign='center'; c.fillText(pv[i]+'%', bar.x, bar.y-6); c.restore();
+    });
+  }};
+  chYear=new Chart(ctx,{data:{labels:ys,datasets:[
+    {type:'bar',label:'ยอดขาย',data:sv,backgroundColor:'#059669'},
+    {type:'line',label:'ค่าแอด',data:av,borderColor:'#dc2626',tension:.3}
+  ]},options:{
+    ...COMMON,
+    plugins:{tooltip:{mode:'index',intersect:false,callbacks:{label:c=>{
+      if(c.datasetIndex===0) return 'ยอดขาย: ฿'+baht(c.parsed.y)+(pv[c.dataIndex]?' (แอด '+pv[c.dataIndex]+'%)':'');
+      return 'ค่าแอด: ฿'+baht(c.parsed.y);
+    }}}}
+  },plugins:[pctPlugin]});
+}
+
+// รวมยอดต่อแบรนด์ในปีที่เลือก
+function brandAgg(brand,y){
+  const sr=DB.sales.filter(r=>String(r.year)===String(y)&&r.brand===brand);
+  const sales=sr.reduce((a,r)=>a+Number(r.sales||0),0);
+  const disc=sr.reduce((a,r)=>a+Number(r.discount||0),0);
+  // ค่าใช้จ่ายที่กรอกเพิ่ม (ถ้ามีคอลัมน์) — ยังไม่มีก็เป็น 0
+  const rent=sr.reduce((a,r)=>a+Number(r.rent||0),0);
+  const inf=sr.reduce((a,r)=>a+Number(r.influencer||0),0);
+  const collab=sr.reduce((a,r)=>a+Number(r.collab||0),0);
+  const comm=sr.reduce((a,r)=>a+Number(r.commission||0),0);
+  const gp=sr.reduce((a,r)=>a+Number(r.gp||0),0);
+  const ads=DB.ads.filter(r=>String(r.year)===String(y)&&r.brand===brand).reduce((a,r)=>a+Number(r.amount||0),0);
+  return {sales,disc,rent,inf,collab,comm,gp,ads};
+}
+// อัตราต้นทุน: เอาจาก Config ก่อน (แก้ในตั้งค่าได้) → fallback config.js → default
+function brandRate(brand,y){
+  const c=DB.config.find(x=>x.brand===brand&&String(x.year)===String(y)) || DB.config.find(x=>x.brand===brand) || {};
+  const base=BRAND_RATES[brand]||{cost:35};
+  return { cost:(c.cost_rate!==''&&c.cost_rate!=null)?Number(c.cost_rate):base.cost };
+}
+// คำนวณ P&L 1 แบรนด์ (GP = ค่าที่กรอกในฟอร์มรายเดือน, snapshot)
+function pnl(brand,y){
+  const g=brandAgg(brand,y);
+  const rate=brandRate(brand,y);
+  const price=g.sales+g.disc;              // ราคาขาย (ราคาเต็ม)
+  const cost=price*rate.cost/100;          // ต้นทุน (จากต้นทุน%)
+  const net=price-cost-g.disc-g.rent-g.ads-g.gp-g.inf-g.collab-g.comm;  // คงเหลือจริง
+  return {price,cost,disc:g.disc,rent:g.rent,ads:g.ads,gp:g.gp,inf:g.inf,collab:g.collab,comm:g.comm,revenue:g.sales,net};
+}
+function renderPnL(y){
+  const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y);return g.sales||g.ads;});
+  const data=brands.map(b=>pnl(b,y));
+  const sum=k=>data.reduce((a,d)=>a+d[k],0);
+  const head=$('#pnlTbl thead'), body=$('#pnlTbl tbody');
+  head.innerHTML='<tr><th>รายการ</th>'+brands.map(b=>`<th>${b}</th>`).join('')+'<th>รวม</th></tr>';
+  const cell=v=>`<td>฿${baht(v)}</td>`;
+  const row=(label,k,opt={})=>{
+    const style=(opt.bold||opt.hl?'font-weight:700;':'')+(opt.top?'border-top:2px solid var(--line);':'')+(opt.hl?'background:#d1fae5;color:#065f46;':'');
+    const note=opt.note?` <span style="color:var(--muted);font-size:11px">${opt.note}</span>`:'';
+    return `<tr style="${style}"><td>${label}${note}</td>`+
+      data.map(d=>cell(d[k])).join('')+`<td>฿${baht(sum(k))}</td></tr>`;
+  };
+  body.innerHTML=
+    row('1. ราคาขาย','price')+
+    row('2. ต้นทุน','cost')+
+    row('3. ส่วนลด','disc')+
+    row('4. ค่าเช่า/ค่าใช้จ่ายอื่นๆ','rent')+
+    row('5. ค่าโฆษณา','ads')+
+    row('6. GP','gp',{note:'กรอกรายเดือน'})+
+    row('7. Influencer','inf')+
+    row('8. Collaborate','collab')+
+    row('9. คอมให้ร้านค้า','comm')+
+    row('รายได้ (ยอดขายหลังลด)','revenue',{top:true,hl:true,note:'ก่อนหักต้นทุน'})+
+    row('คงเหลือจริง','net',{bold:true});
+}
+function renderSideExpense(y){
+  const tb=$('#sideTbl tbody'); tb.innerHTML='';
+  const rows=DB.side.filter(r=>String(r.year)===String(y)).sort((a,b)=>Number(a.month)-Number(b.month));
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="4" style="color:var(--muted);text-align:center">ไม่มีข้อมูล</td></tr>'; $('#sideTotal').textContent=''; return; }
+  let total=0;
+  rows.forEach(r=>{
+    const amt=Number(r.amount||0); total+=amt;
+    tb.innerHTML+=`<tr><td>${MONTHS_TH[Number(r.month)-1]||r.month}</td><td>${r.project||''}</td><td>฿${baht(amt)}</td><td style="color:var(--muted);font-size:12px">${r.note||''}</td></tr>`;
+  });
+  $('#sideTotal').textContent='รวม ฿'+baht(total);
+}
+function renderMonitorAds(y){
+  const tb=$('#monAdsTbl tbody'); tb.innerHTML='';
+  const pnl=pnlBrandList();
+  const monitors=DB.config.filter(c=>(c.type==='monitor'||c.type==='both')&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
+  const extra=brandsAll().filter(b=>!pnl.includes(b)&&!monitors.includes(b));
+  [...monitors,...extra].forEach(b=>{
+    const a=sumAds(y,b);
+    tb.innerHTML+=`<tr><td>${b}</td><td>฿${baht(a)}</td></tr>`;
+  });
+}
+
+function renderCfgEditors(y){
+  const ct=$('#cfgTbl tbody'); ct.innerHTML='';
+  DB.config.filter(c=>String(c.year)===String(y)).forEach(c=>{
+    ct.innerHTML+=`<tr><td><input class="cfg" data-k="brand" value="${c.brand}" style="width:120px;text-align:left"></td>
+      <td><select class="cfg" data-k="type" style="width:90px;text-align:left;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-size:13px">
+        <option value="profit" ${(c.type||'')==='profit'?'selected':''}>profit</option>
+        <option value="monitor" ${(c.type||'')==='monitor'?'selected':''}>monitor</option>
+        <option value="both" ${(c.type||'')==='both'?'selected':''}>both</option>
+      </select></td>
+      <td><input class="cfg" data-k="cost_rate" value="${c.cost_rate||''}"><input type="hidden" class="cfg" data-k="target_dis" value="${c.target_dis||''}"><input type="hidden" class="cfg" data-k="target_ads" value="${c.target_ads||''}"></td>
+      <td>${switchHtml(c.active)}</td></tr>`;
+  });
+  const cht=$('#chTbl tbody'); cht.innerHTML='';
+  (DB.channels||[]).slice().sort((a,b)=>(Number(a.order)||0)-(Number(b.order)||0)).forEach(c=>{
+    cht.innerHTML+=`<tr>
+      <td><input class="cfg" data-k="channel" value="${c.channel}" style="width:120px;text-align:left"></td>
+      <td><input class="cfg" data-k="fee_marketplace" value="${c.fee_marketplace||''}" style="width:80px;text-align:left" placeholder="Shopee"></td>
+      <td>${switchHtml(c.active)}</td>
+      <td><input class="cfg" data-k="order" value="${c.order||''}" style="width:50px"></td></tr>`;
+  });
+}
+function addBrandRow(){ $('#cfgTbl tbody').innerHTML+=`<tr>
+  <td><input class="cfg" data-k="brand" placeholder="ชื่อแบรนด์" style="width:120px;text-align:left"></td>
+  <td><select class="cfg" data-k="type" style="width:90px;text-align:left;padding:4px 6px;border:1px solid var(--line);border-radius:6px;font-size:13px">
+    <option value="profit" selected>profit</option>
+    <option value="monitor">monitor</option>
+    <option value="both">both</option>
+  </select></td>
+  <td><input class="cfg" data-k="cost_rate" placeholder="35"><input type="hidden" class="cfg" data-k="target_dis"><input type="hidden" class="cfg" data-k="target_ads"></td>
+  <td>${switchHtml(true)}</td></tr>`; }
+function addChRow(){ $('#chTbl tbody').innerHTML+=`<tr>
+  <td><input class="cfg" data-k="channel" placeholder="เช่น อื่นๆ" style="width:120px;text-align:left"></td>
+  <td><input class="cfg" data-k="fee_marketplace" style="width:80px;text-align:left" placeholder="Shopee"></td>
+  <td>${switchHtml(true)}</td>
+  <td><input class="cfg" data-k="order" style="width:50px"></td></tr>`; }
+// ปุ่ม toggle active
+function isOn(v){ return v===true || String(v).toUpperCase()==='TRUE'; }
+function switchHtml(v){ return `<label class="switch"><input type="checkbox" data-k="active" ${isOn(v)?'checked':''}><span class="slider"></span></label>`; }
+
+function readRows(tblSel){
+  return [...document.querySelectorAll(tblSel+' tbody tr')].map(tr=>{
+    const o={}; tr.querySelectorAll('input,select').forEach(i=>{
+      o[i.dataset.k] = i.type==='checkbox' ? (i.checked?'TRUE':'FALSE') : i.value;
+    }); return o;
+  });
+}
+async function saveCfg(){
+  const y=$('#year').value;
+  // Config: rebuild ปีที่เลือกจากตาราง (รองรับเพิ่ม/แก้แบรนด์) + คงปีอื่นไว้
+  const cfgOther=DB.config.filter(c=>String(c.year)!==y);
+  const cfgNew=readRows('#cfgTbl').filter(r=>r.brand).map(r=>({
+    brand:r.brand, type:r.type||'profit', active:r.active||'TRUE', year:Number(y),
+    cost_rate:r.cost_rate||'',
+    target_dis:r.target_dis||'', target_ads:r.target_ads||'', note:''
+  }));
+  DB.config=cfgOther.concat(cfgNew);
+  // Channels: rebuild ทั้งหมดจากตาราง (ไม่ผูกปี)
+  DB.channels=readRows('#chTbl').filter(r=>r.channel);
+  const btn=$('#saveCfg'), orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังบันทึก...'; showMsg('กำลังบันทึก...','ok');
+  try{
+    await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'config',rows:DB.config,token:AUTH.token()})});
+    await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'channels',rows:DB.channels,token:AUTH.token()})});
+    btn.innerHTML='✅ บันทึกแล้ว!'; btn.style.background='var(--ok)';
+    render(); setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; btn.disabled=false; },2000);
+  }catch(e){
+    btn.innerHTML='❌ บันทึกไม่สำเร็จ'; btn.style.background='var(--bad)';
+    setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; btn.disabled=false; },3000);
+  }
+}
+
+function initFilters(){
+  const y=$('#year'); y.innerHTML='';
+  years().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;y.appendChild(o);});
+  const b=$('#brand');
+  brandsAll().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;b.appendChild(o);});
+}
+
+// ----- จัดการผู้ใช้ (admin) -----
+function renderUsers(){
+  const tb=$('#usersTbl tbody'); if(!tb) return; tb.innerHTML='';
+  (DB.users||[]).forEach(u=>{
+    const tr=document.createElement('tr'); tr.dataset.u=u.username;
+    tr.innerHTML=`<td style="font-weight:600">${u.username}</td>`+
+      `<td><input value="${u.name||''}" data-k="name" style="width:110px"></td>`+
+      `<td><select data-k="role" style="padding:5px"><option ${u.role==='viewer'?'selected':''}>viewer</option><option ${u.role==='editor'?'selected':''}>editor</option><option ${u.role==='admin'?'selected':''}>admin</option></select></td>`+
+      `<td style="text-align:center"><input type="checkbox" data-k="active" ${String(u.active).toUpperCase()==='TRUE'?'checked':''}></td>`+
+      `<td><input type="password" data-k="password" placeholder="(คงเดิม)" style="width:100px"></td>`+
+      `<td style="white-space:nowrap"><button class="btn ghost usave" style="font-size:11px;padding:5px 9px">💾</button> <button class="udel" style="background:#fee2e2;color:#991b1b;border:0;border-radius:6px;width:26px;height:26px;cursor:pointer">✕</button></td>`;
+    tb.appendChild(tr);
+  });
+  tb.querySelectorAll('.usave').forEach(b=>b.addEventListener('click',()=>saveUserRow(b.closest('tr'))));
+  tb.querySelectorAll('.udel').forEach(b=>b.addEventListener('click',()=>delUser(b.closest('tr').dataset.u)));
+}
+async function postUser(u){
+  const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'saveUser',user:u,token:AUTH.token()})});
+  const j=await res.json(); if(!AUTH.check(j)) return false;
+  if(!j.ok){ showMsg('ไม่สำเร็จ: '+j.error,'err'); return false; }
+  showMsg('บันทึกผู้ใช้ '+u.username+' แล้ว','ok'); await refreshUsers(); return true;
+}
+async function saveUserRow(tr){
+  const u={username:tr.dataset.u};
+  tr.querySelectorAll('[data-k]').forEach(i=>{ u[i.dataset.k]= i.type==='checkbox'?(i.checked?'TRUE':'FALSE'):i.value; });
+  if(!u.password) delete u.password;
+  await postUser(u);
+}
+async function addUser(){
+  const u={username:$('#nuUser').value.trim(), name:$('#nuName').value.trim(), role:$('#nuRole').value, password:$('#nuPass').value, active:'TRUE'};
+  if(!u.username||!u.password){ showMsg('ผู้ใช้ใหม่ต้องมีชื่อผู้ใช้ + รหัสผ่าน','err'); return; }
+  if(await postUser(u)){ $('#nuUser').value='';$('#nuName').value='';$('#nuPass').value=''; }
+}
+async function delUser(username){
+  if(!confirm('ลบผู้ใช้ '+username+' ?')) return;
+  const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'deleteUser',username,token:AUTH.token()})});
+  const j=await res.json(); if(!AUTH.check(j)) return;
+  if(j.ok){ showMsg('ลบ '+username+' แล้ว','ok'); await refreshUsers(); } else showMsg('ไม่สำเร็จ: '+j.error,'err');
+}
+async function refreshUsers(){
+  const res=await fetch(bootstrapUrl()); const d=await res.json(); if(!AUTH.check(d)) return;
+  DB.users=d.users||[]; renderUsers();
+}
+
+async function load(){
+  if(!AUTH.guardPage('index.html')) return;
+  AUTH.applyNav();
+  try{
+    const res=await fetch(bootstrapUrl());
+    DB=await res.json();
+    if(!AUTH.check(DB)) return;
+    // แสดงชื่อ + ปรับ UI ตามสิทธิ์
+    $('#userTag').textContent=(DB.me?DB.me.name:'')+' ('+(DB.me?DB.me.role:'')+')';
+    if(!AUTH.isAdmin()) $('#gearBtn').style.display='none';   // ตั้งค่า = admin เท่านั้น
+    else { $('#usersSection').style.display='block'; renderUsers(); }
+    if(!AUTH.canEdit()){ const fb=$('[href="form.html"]'); if(fb) fb.style.display='none'; }  // viewer ซ่อนปุ่มกรอกข้อมูล
+    initFilters(); render();
+  }catch(e){ showMsg('โหลดข้อมูลไม่ได้ — ตรวจ API_URL ใน config.js: '+e,'err'); }
+}
+function exportExcel(){
+  const y=$('#year').value;
+  const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y);return g.sales||g.ads;});
+  const data=brands.map(b=>pnl(b,y));
+  const sum=k=>data.reduce((a,d)=>a+d[k],0);
+  // P&L
+  const items=[['ราคาขาย','price'],['ต้นทุน','cost'],['ส่วนลด','disc'],['ค่าเช่า/อื่นๆ','rent'],['ค่าโฆษณา','ads'],['GP','gp'],['Influencer','inf'],['Collaborate','collab'],['คอมร้านค้า','comm'],['รายได้(หลังลด)','revenue'],['คงเหลือจริง','net']];
+  const pnlAoa=[['รายการ',...brands,'รวม']];
+  items.forEach(([label,k])=>pnlAoa.push([label,...data.map(d=>d[k]),sum(k)]));
+  // ยอดขายรายเดือน
+  const salesAoa=[['เดือน',...brands]];
+  for(let m=1;m<=12;m++) salesAoa.push([MONTHS_TH[m-1],...brands.map(b=>monthly(DB.sales,y,b,'sales')[m-1])]);
+  // ค่าโฆษณารายเดือน (ทุกแบรนด์ที่มีแอด)
+  const adsBrands=[...new Set(DB.ads.filter(r=>String(r.year)===String(y)).map(r=>r.brand))];
+  const adsAoa=[['เดือน',...adsBrands]];
+  for(let m=1;m<=12;m++) adsAoa.push([MONTHS_TH[m-1],...adsBrands.map(b=>monthly(DB.ads,y,b,'amount')[m-1])]);
+  exportXLSX(`Dashboard_${y}.xlsx`,[{name:'P&L',aoa:pnlAoa},{name:'ยอดขายรายเดือน',aoa:salesAoa},{name:'ค่าโฆษณารายเดือน',aoa:adsAoa}]);
+}
+$('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
+$('#addUserBtn').addEventListener('click',addUser);
+$('#xlsxBtn').addEventListener('click',exportExcel);
+$('#year').addEventListener('change',render);
+$('#brand').addEventListener('change',render);
+$('#reload').addEventListener('click',load);
+$('#saveCfg').addEventListener('click',saveCfg);
+$('#addBrand').addEventListener('click',addBrandRow);
+$('#addCh').addEventListener('click',addChRow);
+
+$('#gearBtn').addEventListener('click',e=>{ e.preventDefault(); $('#settingsModal').classList.add('show'); });
+$('#closeCfg').addEventListener('click',()=>$('#settingsModal').classList.remove('show'));
+$('#settingsModal').addEventListener('click',e=>{ if(e.target.id==='settingsModal') e.currentTarget.classList.remove('show'); });
+load();
+</script>
+</body>
+</html>

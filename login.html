@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='16' width='4' height='9' rx='1' fill='%23ffffff'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='%23ffffff'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='%23bfdbfe'/%3E%3C/svg%3E">
+<title>เข้าสู่ระบบ | Folio Budget</title>
+<style>
+  :root { --brand:#2563eb; --line:#e3e8ef; --ink:#1f2a37; --muted:#6b7280; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:linear-gradient(135deg,#2563eb,#1e3a8a); color:var(--ink); min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .box { background:#fff; border-radius:18px; padding:34px 30px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
+  .logo { text-align:center; font-size:40px; margin-bottom:6px; }
+  h1 { font-size:20px; text-align:center; margin:0 0 4px; }
+  .sub { text-align:center; color:var(--muted); font-size:13px; margin-bottom:22px; }
+  label { font-size:13px; color:var(--muted); display:block; margin:14px 0 5px; }
+  input { width:100%; padding:11px 13px; border:1px solid var(--line); border-radius:10px; font-size:15px; }
+  input:focus { outline:none; border-color:var(--brand); }
+  button { width:100%; margin-top:22px; background:var(--brand); color:#fff; border:0; padding:12px; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; }
+  button:hover { background:#1d4ed8; } button:disabled { opacity:.6; cursor:default; }
+  .err { background:#fee2e2; color:#991b1b; padding:10px 12px; border-radius:8px; font-size:13px; margin-top:16px; display:none; }
+  .err.show { display:block; }
+  .spinner { display:inline-block; width:15px; height:15px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:7px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+  <div class="box">
+    <div class="logo">📊</div>
+    <h1>Folio Budget</h1>
+    <div class="sub">เข้าสู่ระบบเพื่อใช้งาน</div>
+    <form id="loginForm">
+      <label>ชื่อผู้ใช้</label>
+      <input id="username" autocomplete="username" autofocus required>
+      <label>รหัสผ่าน</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit" id="btn">เข้าสู่ระบบ</button>
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+// ถ้า login อยู่แล้ว เข้าหน้าหลักเลย
+if(AUTH.token()) location.href='index.html';
+
+$('#loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const btn=$('#btn'), err=$('#err');
+  err.className='err';
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังเข้าสู่ระบบ...';
+  try{
+    const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'login',username:$('#username').value.trim(),password:$('#password').value})});
+    const j=await res.json();
+    if(j.ok){ AUTH.set(j); location.href='index.html'; }
+    else { err.textContent='❌ '+(j.error||'เข้าสู่ระบบไม่สำเร็จ'); err.className='err show'; btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
+  }catch(ex){ err.textContent='เชื่อมต่อไม่ได้: '+ex; err.className='err show'; btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
+});
+</script>
+</body>
+</html>

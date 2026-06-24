@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='16' width='4' height='9' rx='1' fill='%23ffffff'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='%23ffffff'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='%23bfdbfe'/%3E%3C/svg%3E">
+<title>ค่าโฆษณาจริง (บัญชี) | Folio Budget</title>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --ink:#1f2a37; --muted:#6b7280;
+          --brand:#2563eb; --ok:#059669; --warn:#d97706; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0 8px 0 0; }
+  .nav { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .navbtn { display:inline-flex; align-items:center; gap:6px; color:#fff; text-decoration:none; font-size:14px; font-weight:600;
+            background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:7px 14px; border-radius:999px; transition:.15s; cursor:pointer; }
+  .navbtn:hover { background:rgba(255,255,255,.28); transform:translateY(-1px); }
+  .navbtn.active { background:#fff; color:var(--brand); border-color:#fff; }
+  .navbtn.primary { background:#fff; color:var(--brand); border-color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .navbtn.primary:hover { background:#f0f6ff; }
+  .wrap { max-width:1200px; margin:0 auto; padding:20px; }
+  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:var(--card); padding:16px; border-radius:12px; border:1px solid var(--line); margin-bottom:18px; }
+  .btn { background:var(--brand); color:#fff; border:0; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; }
+  .btn.ghost { background:#eef2f7; color:var(--ink); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; overflow-x:auto; }
+  .card h2 { font-size:15px; margin:0 0 10px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+  th,td { padding:6px 8px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child,td:first-child { text-align:left; font-weight:600; }
+  th { color:var(--muted); font-size:12px; background:#f8fafc; }
+  tr.total td { font-weight:800; border-top:2px solid var(--line); background:#f8fafc; }
+  td input { width:110px; text-align:right; padding:5px 6px; border:1px solid var(--line); border-radius:6px; font-size:13px; }
+  td input::-webkit-outer-spin-button, td input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  td input { -moz-appearance:textfield; appearance:textfield; }
+  td input.lock { background:#f1f5f9; color:#64748b; cursor:not-allowed; border-color:transparent; }
+  .msg { padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; display:none; }
+  .msg.ok{background:#d1fae5;color:#065f46;display:block;} .msg.err{background:#fee2e2;color:#991b1b;display:block;} .msg.info{background:#dbeafe;color:#1e40af;display:block;}
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .note-banner { background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:10px 14px; border-radius:10px; font-size:13px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Folio Budget</h1>
+  <nav class="nav">
+    <a class="navbtn" href="index.html">📊 Dashboard</a>
+    <a class="navbtn" href="target.html">🎯 เป้า vs จริง</a>
+    <a class="navbtn" href="scratch.html">🗒️ พักข้อมูลช่องทาง</a>
+    <a class="navbtn active" href="adsdoc.html">💸 ค่าโฆษณาจริง</a>
+    <!-- เพิ่มเมนูหน้าใหม่ตรงนี้ -->
+  </nav>
+  <div class="nav" style="margin-left:auto">
+    <span id="userTag" style="color:#dbeafe;font-size:13px"></span>
+    <a class="navbtn primary" href="form.html">📝 กรอกข้อมูลรายเดือน</a>
+    <a href="#" id="logoutBtn" class="navbtn" title="ออกจากระบบ">🚪 ออก</a>
+  </div>
+</header>
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+  <div class="note-banner">💸 หน้านี้เก็บ <b>ค่าโฆษณาจริงตามเอกสารบัญชี</b> (รอบจ่ายไม่ตรงกับยอดที่ใช้จริง) — เป็นสถิติแยก <b>ไม่เชื่อมกับ Dashboard/รายงาน</b></div>
+  <div class="bar">
+    <div style="font-weight:600">ค่าโฆษณาจริง (ตามบัญชี) — รายเดือน × รายปี</div>
+    <div style="flex:1"></div>
+    <button class="btn ghost" id="editBtn">🔓 แก้ปีเก่า</button>
+    <button class="btn ghost" id="addYear">+ เพิ่มปี</button>
+    <button class="btn ghost" id="reload">🔄 รีเฟรช</button>
+    <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
+    <button class="btn" id="saveBtn">💾 บันทึก</button>
+  </div>
+
+  <div class="card">
+    <h2>ตารางค่าโฆษณาจริง</h2>
+    <table id="tbl"><thead></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const MONTHS=window.MONTHS_TH;
+let DB={adsdoc:[]};
+let YEARS=[];
+let D={};  // D[year][month] = value
+let unlocked=false;
+const CUR=new Date().getFullYear();   // ปีปัจจุบัน — ปีก่อนหน้านี้ล็อกกันกดผิด
+const baht=n=>Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:2});
+const num=v=>{ if(v===''||v==null) return 0; const n=Number(v); return isNaN(n)?0:n; };
+
+function buildData(){
+  D={};
+  (DB.adsdoc||[]).forEach(r=>{
+    const y=String(r.year); if(!D[y]) D[y]={};
+    D[y][Number(r.month)]=r.amount;
+  });
+  const ys=new Set(Object.keys(D).map(Number));
+  [2021,2022,2023,2024,2025,2026].forEach(y=>ys.add(y));
+  YEARS=[...ys].sort((a,b)=>a-b);
+}
+
+function render(){
+  const th=$('#tbl thead'), tb=$('#tbl tbody');
+  th.innerHTML='<tr><th>เดือน</th>'+YEARS.map(y=>`<th>${y}</th>`).join('')+'</tr>';
+  let rows='';
+  for(let m=1;m<=12;m++){
+    rows+=`<tr><td>${MONTHS[m-1]}</td>`+YEARS.map(y=>{
+      const v=(D[y]&&D[y][m]!=null)?D[y][m]:'';
+      const lock=(Number(y)<CUR)&&!unlocked;
+      return `<td><input type="number" ${lock?'readonly class="lock"':''} data-y="${y}" data-m="${m}" value="${v}"></td>`;
+    }).join('')+'</tr>';
+  }
+  // total
+  rows+='<tr class="total"><td>รวมทั้งปี</td>'+YEARS.map(y=>{
+    let s=0; for(let m=1;m<=12;m++) s+=num(D[y]&&D[y][m]);
+    return `<td data-tot="${y}">${baht(s)}</td>`;
+  }).join('')+'</tr>';
+  tb.innerHTML=rows;
+
+  tb.querySelectorAll('input').forEach(i=>i.addEventListener('input',()=>{
+    const y=i.dataset.y, m=Number(i.dataset.m);
+    if(!D[y]) D[y]={}; D[y][m]=i.value;
+    let s=0; for(let mm=1;mm<=12;mm++) s+=num(D[y][mm]);
+    const tot=tb.querySelector(`[data-tot="${y}"]`); if(tot) tot.textContent=baht(s);
+  }));
+}
+
+function showMsg(t,c){ const el=$('#msg'); el.textContent=t; el.className='msg '+c; if(c==='ok'||c==='err') setTimeout(()=>el.className='msg',4000); }
+
+async function save(){
+  const rows=[];
+  YEARS.forEach(y=>{ for(let m=1;m<=12;m++){ const v=D[y]&&D[y][m]; if(v!==''&&v!=null&&num(v)>0) rows.push({year:Number(y),month:m,amount:num(v)}); } });
+  const btn=$('#saveBtn'), orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังบันทึก...';
+  try{
+    const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'adsdoc',rows,token:AUTH.token()})});
+    const j=await res.json(); if(!AUTH.check(j)) return;
+    if(!j.ok){ throw new Error(j.error||'บันทึกไม่สำเร็จ'); }
+    DB.adsdoc=rows;
+    btn.innerHTML='✅ บันทึกแล้ว!'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2000);
+    showMsg(`บันทึกสำเร็จ (${rows.length} รายการ)`,'ok');
+  }catch(e){ btn.innerHTML='❌ ไม่สำเร็จ'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},3000); showMsg('บันทึกไม่สำเร็จ: '+e,'err'); }
+}
+
+function addYear(){
+  const next=Math.max(...YEARS)+1;
+  YEARS.push(next); render();
+  showMsg(`เพิ่มปี ${next} แล้ว — กรอกแล้วกดบันทึก`,'info');
+}
+
+async function boot(){
+  if(!AUTH.guardPage('adsdoc.html')) return;
+  AUTH.applyNav();
+  showMsg('กำลังโหลด...','info');
+  try{
+    const res=await fetch(bootstrapUrl());
+    DB=await res.json();
+    if(!AUTH.check(DB)) return;
+    if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
+      if(!AUTH.canEdit()){ $('#saveBtn').disabled=true; $('#addYear').disabled=true; } }
+    if(!DB.adsdoc) DB.adsdoc=[];
+    buildData(); render();
+    $('#msg').className='msg';
+  }catch(e){ showMsg('โหลดข้อมูลไม่ได้: '+e,'err'); }
+}
+$('#editBtn').addEventListener('click',()=>{
+  unlocked=!unlocked;
+  $('#editBtn').innerHTML=unlocked?'🔒 ล็อกปีเก่า':'🔓 แก้ปีเก่า';
+  $('#editBtn').style.background=unlocked?'var(--warn)':'';
+  $('#editBtn').style.color=unlocked?'#fff':'';
+  render();
+  showMsg(unlocked?'ปลดล็อกปีเก่าแล้ว — แก้ได้ทุกปี ระวังกดผิด':'ล็อกปีเก่าแล้ว','info');
+});
+function exportExcel(){
+  const aoa=[['เดือน',...YEARS]];
+  for(let m=1;m<=12;m++){ aoa.push([MONTHS[m-1],...YEARS.map(y=>num(D[y]&&D[y][m]))]); }
+  aoa.push(['รวมทั้งปี',...YEARS.map(y=>{let s=0;for(let m=1;m<=12;m++)s+=num(D[y]&&D[y][m]);return s;})]);
+  exportXLSX('ค่าโฆษณาจริง.xlsx',[{name:'ค่าโฆษณาจริง',aoa}]);
+}
+$('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
+$('#xlsxBtn').addEventListener('click',exportExcel);
+$('#reload').addEventListener('click',boot);
+$('#addYear').addEventListener('click',addYear);
+$('#saveBtn').addEventListener('click',save);
+boot();
+</script>
+</body>
+</html>

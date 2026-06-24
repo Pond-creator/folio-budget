@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='16' width='4' height='9' rx='1' fill='%23ffffff'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='%23ffffff'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='%23bfdbfe'/%3E%3C/svg%3E">
+<title>กรอกข้อมูลรายเดือน | Folio Budget</title>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --ink:#1f2a37; --muted:#6b7280;
+          --brand:#2563eb; --ok:#059669; --warn:#d97706; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0 8px 0 0; }
+  .nav { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .navbtn { display:inline-flex; align-items:center; gap:6px; color:#fff; text-decoration:none; font-size:14px; font-weight:600;
+            background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:7px 14px; border-radius:999px; transition:.15s; cursor:pointer; }
+  .navbtn:hover { background:rgba(255,255,255,.28); transform:translateY(-1px); }
+  .navbtn.active { background:#fff; color:var(--brand); border-color:#fff; }
+  .navbtn.primary { background:#fff; color:var(--brand); border-color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .navbtn.primary:hover { background:#f0f6ff; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+  .bar { display:flex; gap:12px; align-items:end; flex-wrap:wrap; background:var(--card); padding:16px; border-radius:12px; border:1px solid var(--line); margin-bottom:18px; }
+  .bar label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+  select, input { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  input[type=number] { width:120px; text-align:right; }
+  /* เอาลูกศรปรับขึ้น-ลงออก */
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; overflow-x:auto; }
+  .card h2 { font-size:15px; margin:0 0 12px; display:flex; align-items:center; gap:8px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--muted); font-weight:600; font-size:12px; }
+  .tag { font-size:11px; padding:2px 7px; border-radius:20px; }
+  .tag.profit { background:#dbeafe; color:#1e40af; }
+  .tag.monitor { background:#fef3c7; color:#92400e; }
+  .pct { font-size:12px; color:var(--muted); }
+  .pct.over { color:var(--bad); font-weight:600; }
+  .btn { background:var(--brand); color:#fff; border:0; padding:11px 22px; border-radius:9px; font-size:15px; cursor:pointer; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.ghost { background:#eef2f7; color:var(--ink); }
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:7px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .msg { padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; display:none; }
+  .msg.ok { background:#d1fae5; color:#065f46; display:block; }
+  .msg.err { background:#fee2e2; color:#991b1b; display:block; }
+  .msg.info { background:#e0f2fe; color:#075985; display:block; }
+  .hint { font-size:12px; color:var(--muted); margin:4px 0 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Folio Budget</h1>
+  <nav class="nav">
+    <a class="navbtn" href="index.html">📊 Dashboard</a>
+    <a class="navbtn" href="target.html">🎯 เป้า vs จริง</a>
+    <a class="navbtn" href="scratch.html">🗒️ พักข้อมูลช่องทาง</a>
+    <a class="navbtn" href="adsdoc.html">💸 ค่าโฆษณาจริง</a>
+    <!-- เพิ่มเมนูหน้าใหม่ตรงนี้ -->
+  </nav>
+  <div class="nav" style="margin-left:auto">
+    <span id="userTag" style="color:#dbeafe;font-size:13px"></span>
+    <a class="navbtn primary active" href="form.html">📝 กรอกข้อมูลรายเดือน</a>
+    <a href="#" id="logoutBtn" class="navbtn" title="ออกจากระบบ">🚪 ออก</a>
+  </div>
+</header>
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+
+  <div class="bar">
+    <div><label>ปี</label><select id="year"></select></div>
+    <div><label>เดือน</label><select id="month"></select></div>
+    <button class="btn ghost" id="loadBtn">โหลดข้อมูลเดือนนี้</button>
+    <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
+    <div class="hint" style="flex:1">เลือกเดือนแล้วกด “โหลด” เพื่อแก้ของเดิม หรือกรอกใหม่ได้เลย • ยอดที่บันทึกจะถูกล็อกเป็น snapshot</div>
+  </div>
+
+  <div class="card">
+    <h2>💰 ยอดขาย</h2>
+    <table id="salesTbl">
+      <thead><tr><th>แบรนด์</th><th>ยอดขาย (หลังลด)</th><th>ส่วนลด</th><th>ราคาเต็ม (อัตโนมัติ)</th><th>ส่วนลด%</th><th>จำนวนชิ้น</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="hint">กรอก “ยอดขายหลังลด” + “ส่วนลด” → ราคาเต็มกับส่วนลด% คำนวณให้อัตโนมัติ • จำนวนชิ้นกรอกเองเฉพาะแบรนด์ที่นับ</p>
+  </div>
+
+  <div class="card">
+    <h2>📣 ค่าโฆษณา (แยกช่องทาง)</h2>
+    <table id="adsTbl"><thead></thead><tbody></tbody></table>
+    <p class="hint">กรอกค่าแอดแต่ละช่องเป็นบาท (Cp-shopee/lazada/tiktok = ยิงแอดแบบ CPAS) • บันทึกแล้วล็อกเป็น snapshot</p>
+  </div>
+
+  <div class="card">
+    <h2>💸 ค่าใช้จ่ายเพิ่มเติม (เข้าตาราง P&L)</h2>
+    <table id="expTbl">
+      <thead><tr><th>แบรนด์</th><th>GP%</th><th>ค่าเช่า/อื่นๆ</th><th>ค่าคอมให้ร้านค้า</th><th>Influencer</th><th>Collaborate</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="hint">GP% กรอกเป็นตัวเลข เช่น 21 = 21% ระบบจะคำนวณบาทจาก ยอดขาย×GP% แล้วบันทึกล็อกถาวร • โหลดเดือนเก่าจะแสดง GP% ย้อนกลับให้อัตโนมัติ</p>
+  </div>
+
+  <div class="card">
+    <h2>🧩 ค่าใช้จ่ายโปรเจคเสริม</h2>
+    <table id="sideTbl">
+      <thead><tr><th>โปรเจค</th><th>จำนวนเงิน</th><th>หมายเหตุ</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <button class="btn ghost" id="addSide" style="margin-top:8px;font-size:12px">+ เพิ่มโปรเจค</button>
+    <p class="hint">เพิ่มได้ตามต้องการ (arrtx, say hi, ฯลฯ)</p>
+  </div>
+
+  <div class="card">
+    <h2>📊 สรุปเดือนนี้ (อัปเดตสดตอนกรอก)</h2>
+    <div id="summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div>
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center;">
+    <button class="btn" id="saveBtn">💾 บันทึกเดือนนี้</button>
+    <span class="hint">บันทึกแล้วระบบจะแทนที่ข้อมูลเดือนนี้ทั้งหมด (upsert)</span>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+let DB = { config:[], sales:[], ads:[], side:[], channels:[] };
+let SIDE_PROJECTS = ['arrtx','say hi'];
+
+// รายชื่อช่องทางมาจากแท็บ Channels (fallback = ค่าใน config.js)
+function adChannels() {
+  if (DB.channels && DB.channels.length)
+    return DB.channels.filter(c => String(c.active).toUpperCase()==='TRUE')
+      .sort((a,b)=>(Number(a.order)||0)-(Number(b.order)||0))
+      .map(c => c.channel);
+  return AD_CHANNELS;
+}
+
+
+function activeBrands() {
+  return DB.config.filter(c => String(c.active).toUpperCase()==='TRUE')
+                  .map(c => ({ brand:c.brand, type:c.type }));
+}
+
+function showMsg(t, cls) { const m=$('#msg'); m.textContent=t; m.className='msg '+cls; if(cls==='ok'||cls==='err') m.scrollIntoView({behavior:'smooth',block:'center'}); }
+
+function initSelectors() {
+  const y=$('#year'); const now=new Date().getFullYear();
+  for (let v=now+1; v>=2016; v--) { const o=document.createElement('option'); o.value=v; o.textContent=v; y.appendChild(o); }
+  y.value = 2026;
+  const mo=$('#month');
+  MONTHS_TH.forEach((m,i)=>{ const o=document.createElement('option'); o.value=i+1; o.textContent=m; mo.appendChild(o); });
+  mo.value = new Date().getMonth()+1;
+}
+
+function buildSales() {
+  const tb=$('#salesTbl tbody'); tb.innerHTML='';
+  activeBrands().forEach(b=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${b.brand} <span class="tag ${b.type}">${b.type}</span></td>
+      <td><input type="number" step="0.01" data-f="sales"></td>
+      <td><input type="number" step="0.01" data-f="discount"></td>
+      <td data-f="full" style="color:var(--muted)">—</td>
+      <td class="pct" data-f="disp">—</td>
+      <td><input type="number" step="1" data-f="qty"></td>`;
+    tr.dataset.brand=b.brand;
+    tb.appendChild(tr);
+    tr.addEventListener('input', ()=>{ recalcRow(tr); updateSummary(); });
+  });
+}
+// ราคาเต็ม = ยอดขายหลังลด + ส่วนลด (อัตโนมัติ) ; ส่วนลด% = ส่วนลด ÷ ราคาเต็ม
+function recalcRow(tr){
+  const s=Number(tr.querySelector('[data-f=sales]').value)||0;
+  const ds=Number(tr.querySelector('[data-f=discount]').value)||0;
+  const fp=s+ds;
+  tr.querySelector('[data-f=full]').textContent = fp>0 ? fp.toLocaleString(undefined,{maximumFractionDigits:2}) : '—';
+  const cell=tr.querySelector('[data-f=disp]');
+  if(fp>0){ const p=ds/fp; cell.textContent=(p*100).toFixed(1)+'%';
+    const t=DB.config.find(c=>c.brand===tr.dataset.brand);
+    cell.classList.toggle('over', t && t.target_dis && p*100>Number(t.target_dis));
+  } else { cell.textContent='—'; cell.classList.remove('over'); }
+}
+function updateSummary(){
+  let sales=0, disc=0, ads=0, side=0;
+  $('#salesTbl tbody').querySelectorAll('tr').forEach(tr=>{
+    sales+=Number(tr.querySelector('[data-f=sales]').value)||0;
+    disc+=Number(tr.querySelector('[data-f=discount]').value)||0;
+  });
+  $('#adsTbl tbody').querySelectorAll('[data-ch]').forEach(i=>ads+=Number(i.value)||0);
+  $('#sideTbl tbody').querySelectorAll('[data-f=amount]').forEach(i=>side+=Number(i.value)||0);
+  const fmt=v=>'฿'+v.toLocaleString(undefined,{maximumFractionDigits:2});
+  const adsPct=sales>0?(ads/sales*100).toFixed(1)+'%':'—';
+  const cards=[['ยอดขายรวม',fmt(sales)],['ส่วนลดรวม',fmt(disc)],['ค่าโฆษณารวม',fmt(ads)],
+    ['ค่าแอด % ต่อยอด',adsPct],['โปรเจคเสริม',fmt(side)]];
+  $('#summary').innerHTML=cards.map(c=>`<div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:12px">
+    <div style="font-size:12px;color:var(--muted)">${c[0]}</div><div style="font-size:20px;font-weight:700;margin-top:4px">${c[1]}</div></div>`).join('');
+}
+
+function buildAds() {
+  const head=$('#adsTbl thead'); const body=$('#adsTbl tbody');
+  head.innerHTML=''; body.innerHTML='';
+  const CHS=adChannels();
+  const hr=document.createElement('tr');
+  hr.innerHTML='<th>แบรนด์</th>'+CHS.map(c=>`<th>${c}</th>`).join('')+'<th>รวม</th>';
+  head.appendChild(hr);
+  activeBrands().forEach(b=>{
+    const tr=document.createElement('tr'); tr.dataset.brand=b.brand;
+    let cells=`<td>${b.brand}</td>`;
+    CHS.forEach(ch=>{
+      cells+=`<td><input type="number" step="0.01" data-ch="${ch}" style="width:90px"></td>`;
+    });
+    cells+='<td data-f="sum">0</td>';
+    tr.innerHTML=cells; body.appendChild(tr);
+    tr.addEventListener('input', ()=>{ adsRowSum(tr); updateSummary(); });
+  });
+}
+function adsRowSum(tr){
+  let s=0; tr.querySelectorAll('[data-ch]').forEach(i=>s+=Number(i.value)||0);
+  tr.querySelector('[data-f=sum]').textContent=s.toLocaleString(undefined,{maximumFractionDigits:2});
+}
+
+function addSideRow(project='', amount='', note=''){
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td><input type="text" data-f="project" value="${project}" placeholder="ชื่อโปรเจค" style="width:160px;text-align:left"></td>
+    <td><input type="number" step="0.01" data-f="amount" value="${amount}"></td>
+    <td><input type="text" data-f="note" value="${note}" placeholder="หมายเหตุ" style="width:240px;text-align:left"></td>`;
+  tr.addEventListener('input', updateSummary);
+  $('#sideTbl tbody').appendChild(tr);
+}
+function buildSide(){
+  $('#sideTbl tbody').innerHTML='';
+  SIDE_PROJECTS.forEach(p=>addSideRow(p));
+}
+
+// แบรนด์ที่เข้า P&L (จาก config.js) — เผื่อไม่มีให้ fallback เป็นแบรนด์ profit + Giftbox
+// แบรนด์เข้า P&L = PNL_BRANDS (ตั้งต้น) + แบรนด์ active type=profit (เพิ่มใหม่ได้)
+function pnlBrands(){
+  const set=new Set((typeof PNL_BRANDS!=='undefined'&&PNL_BRANDS.length)?PNL_BRANDS:[]);
+  (DB.config||[]).filter(c=>String(c.active).toUpperCase()==='TRUE'&&(c.type==='profit'||c.type==='both')).forEach(c=>set.add(c.brand));
+  return [...set];
+}
+const EXP_FIELDS=['gp','rent','commission','influencer','collab'];
+function buildExp(){
+  const tb=$('#expTbl tbody'); tb.innerHTML='';
+  pnlBrands().forEach(brand=>{
+    const tr=document.createElement('tr'); tr.dataset.brand=brand;
+    tr.innerHTML=`<td>${brand}</td>`+EXP_FIELDS.map(f=>
+      f==='gp'
+        ? `<td><input type="number" step="0.1" min="0" max="100" placeholder="เช่น 21" data-e="gp" style="width:90px"></td>`
+        : `<td><input type="number" step="0.01" data-e="${f}"></td>`
+    ).join('');
+    tr.addEventListener('input', updateSummary);
+    tb.appendChild(tr);
+  });
+}
+
+function loadMonth(){
+  const y=$('#year').value, m=$('#month').value;
+  buildSales(); buildAds(); buildSide(); buildExp();
+  // sales + ค่าใช้จ่ายเพิ่มเติม
+  DB.sales.filter(r=>String(r.year)===y&&String(r.month)===m).forEach(r=>{
+    const tr=[...$('#salesTbl tbody').children].find(t=>t.dataset.brand===r.brand);
+    if(tr){
+      ['sales','discount','qty'].forEach(f=>{
+        const el=tr.querySelector(`[data-f=${f}]`); if(el && r[f]!=='' && r[f]!=null) el.value=r[f];
+      });
+      recalcRow(tr);
+    }
+    const etr=[...$('#expTbl tbody').children].find(t=>t.dataset.brand===r.brand);
+    if(etr){
+      ['rent','commission','influencer','collab'].forEach(f=>{
+        const el=etr.querySelector(`[data-e=${f}]`);
+        if(el && r[f]!==''&&r[f]!=null&&Number(r[f])) el.value=r[f];
+      });
+      const gpEl=etr.querySelector('[data-e=gp]');
+      if(gpEl && Number(r.gp)&&Number(r.sales)>0)
+        gpEl.value=(Number(r.gp)/Number(r.sales)*100).toFixed(1);
+    }
+  });
+  // ads
+  DB.ads.filter(r=>String(r.year)===y&&String(r.month)===m).forEach(r=>{
+    const tr=[...$('#adsTbl tbody').children].find(t=>t.dataset.brand===r.brand);
+    if(!tr) return;
+    const el=tr.querySelector(`[data-ch="${r.channel}"]`); if(el) el.value=r.amount;
+    adsRowSum(tr);
+  });
+  // side
+  const sd=DB.side.filter(r=>String(r.year)===y&&String(r.month)===m);
+  if(sd.length){ $('#sideTbl tbody').innerHTML=''; sd.forEach(r=>addSideRow(r.project,r.amount,r.note||'')); }
+  updateSummary();
+  showMsg(`โหลดข้อมูล ${MONTHS_TH[m-1]} ${y} แล้ว`, 'info');
+}
+
+function collect(){
+  const y=Number($('#year').value), m=Number($('#month').value);
+  const expMap={};
+  [...$('#expTbl tbody').children].forEach(tr=>{
+    const o={}; tr.querySelectorAll('[data-e]').forEach(i=>o[i.dataset.e]=i.value); expMap[tr.dataset.brand]=o;
+  });
+  const sales=[...$('#salesTbl tbody').children].map(tr=>{
+    const g=f=>tr.querySelector(`[data-f=${f}]`).value;
+    const s=Number(g('sales'))||0, ds=Number(g('discount'))||0;
+    const e=expMap[tr.dataset.brand]||{};
+    const gpPct=Number(e.gp)||0;
+    const gpAmt=(gpPct>0&&s>0)?(s*gpPct/100).toFixed(2):'';
+    return { brand:tr.dataset.brand, sales:g('sales'),
+             full_price:(s||ds)?(s+ds):'',
+             discount:g('discount'), qty:g('qty'), cogs:'',
+             gp:gpAmt, rent:e.rent||'', commission:e.commission||'', influencer:e.influencer||'', collab:e.collab||'' };
+  }).filter(r=>r.sales||r.discount||r.qty||r.gp||r.rent||r.commission||r.influencer||r.collab);
+  const ads=[];
+  [...$('#adsTbl tbody').children].forEach(tr=>{
+    tr.querySelectorAll('[data-ch]').forEach(i=>{
+      if(i.value) ads.push({ brand:tr.dataset.brand, channel:i.dataset.ch, amount:i.value });
+    });
+  });
+  const side=[...$('#sideTbl tbody').children].map(tr=>({
+    project:tr.querySelector('[data-f=project]').value, amount:tr.querySelector('[data-f=amount]').value,
+    note:tr.querySelector('[data-f=note]').value
+  })).filter(r=>r.project && r.amount);
+  return { year:y, month:m, sales, ads, side };
+}
+
+async function save(){
+  const payload=collect();
+  if(!payload.sales.length && !payload.ads.length && !payload.side.length){
+    showMsg('ยังไม่มีข้อมูลให้บันทึก','err'); return;
+  }
+  const btn=$('#saveBtn'), orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังบันทึก...'; showMsg('กำลังบันทึก...','info');
+  try{
+    const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'save',payload,token:AUTH.token()})});
+    const j=await res.json();
+    if(!AUTH.check(j)) return;
+    if(j.ok){ showMsg(`✅ บันทึก ${MONTHS_TH[payload.month-1]} ${payload.year} สำเร็จ`,'ok'); await bootstrap(false); }
+    else showMsg('บันทึกไม่สำเร็จ: '+j.error,'err');
+  }catch(e){ showMsg('เชื่อมต่อ API ไม่ได้: '+e,'err'); }
+  btn.disabled=false; btn.innerHTML=orig;
+}
+
+async function bootstrap(rebuild=true){
+  if(!AUTH.guardPage('form.html')) return;
+  AUTH.applyNav();
+  try{
+    const res=await fetch(bootstrapUrl());
+    DB=await res.json();
+    if(!AUTH.check(DB)) return;
+    if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
+      if(!AUTH.canEdit()){ showMsg('สิทธิ์ viewer ดูได้อย่างเดียว ไม่สามารถกรอกข้อมูล','err'); $('#saveBtn').disabled=true; } }
+    if(rebuild){ buildSales(); buildAds(); buildSide(); buildExp(); updateSummary(); }
+  }catch(e){ showMsg('โหลดข้อมูลจาก API ไม่ได้ — ตรวจ API_URL ใน config.js: '+e,'err'); }
+}
+
+initSelectors();
+function exportExcel(){
+  const p=collect();
+  const sAoa=[['แบรนด์','ยอดขาย','ส่วนลด','ราคาเต็ม','จำนวนชิ้น','GP','ค่าเช่า','คอมร้านค้า','Influencer','Collaborate']];
+  p.sales.forEach(r=>sAoa.push([r.brand,Number(r.sales)||'',Number(r.discount)||'',Number(r.full_price)||'',Number(r.qty)||'',Number(r.gp)||'',Number(r.rent)||'',Number(r.commission)||'',Number(r.influencer)||'',Number(r.collab)||'']));
+  const aAoa=[['แบรนด์','ช่องทาง','จำนวน']];
+  p.ads.forEach(r=>aAoa.push([r.brand,r.channel,Number(r.amount)||'']));
+  exportXLSX(`กรอกข้อมูล_${MONTHS_TH[p.month-1]}${p.year}.xlsx`,[{name:'ยอดขาย',aoa:sAoa},{name:'ค่าโฆษณา',aoa:aAoa}]);
+}
+$('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
+$('#xlsxBtn').addEventListener('click', exportExcel);
+$('#loadBtn').addEventListener('click', loadMonth);
+$('#saveBtn').addEventListener('click', save);
+$('#addSide').addEventListener('click', ()=>addSideRow());
+$('#year').addEventListener('change', ()=>buildAds());
+
+// ช่องตัวเลข: พิมพ์ได้แค่ตัวเลข + จุดทศนิยม (บล็อก e/E/+/-) เว้นว่างได้
+document.addEventListener('keydown', e=>{
+  const el=e.target;
+  if(el.tagName==='INPUT' && el.type==='number' && ['e','E','+','-'].includes(e.key)) e.preventDefault();
+});
+// กันการ "วาง" ข้อความที่ไม่ใช่ตัวเลข
+document.addEventListener('paste', e=>{
+  const el=e.target;
+  if(el.tagName==='INPUT' && el.type==='number'){
+    const txt=(e.clipboardData||window.clipboardData).getData('text');
+    if(txt && !/^-?\d*\.?\d*$/.test(txt.trim())) e.preventDefault();
+  }
+});
+
+bootstrap();
+</script>
+</body>
+</html>

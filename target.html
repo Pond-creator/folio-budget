@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='16' width='4' height='9' rx='1' fill='%23ffffff'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='%23ffffff'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='%23bfdbfe'/%3E%3C/svg%3E">
+<title>เป้า vs จริง | Folio Budget</title>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --ink:#1f2a37; --muted:#6b7280;
+          --brand:#2563eb; --ok:#059669; --warn:#d97706; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0 8px 0 0; }
+  .nav { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .navbtn { display:inline-flex; align-items:center; gap:6px; color:#fff; text-decoration:none; font-size:14px; font-weight:600;
+            background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:7px 14px; border-radius:999px; transition:.15s; cursor:pointer; }
+  .navbtn:hover { background:rgba(255,255,255,.28); transform:translateY(-1px); }
+  .navbtn.active { background:#fff; color:var(--brand); border-color:#fff; }
+  .navbtn.primary { background:#fff; color:var(--brand); border-color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .navbtn.primary:hover { background:#f0f6ff; }
+  .wrap { max-width:1200px; margin:0 auto; padding:20px; }
+  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:var(--card); padding:16px; border-radius:12px; border:1px solid var(--line); margin-bottom:18px; }
+  .bar label { font-size:12px; color:var(--muted); margin-right:4px; }
+  select { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  .btn { background:var(--brand); color:#fff; border:0; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; }
+  .btn.ghost { background:#eef2f7; color:var(--ink); }
+  .btn.warn { background:var(--warn); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; overflow-x:auto; }
+  .card h2 { font-size:15px; margin:0 0 12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; white-space:nowrap; }
+  th,td { padding:7px 10px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child,td:first-child { text-align:left; }
+  th { color:var(--muted); font-size:12px; background:#f8fafc; position:sticky; top:0; }
+  thead .grp { text-align:center; font-weight:700; color:var(--ink); background:#eef2ff; border-bottom:2px solid var(--line); }
+  tr.total td { font-weight:800; border-top:2px solid var(--line); background:#f8fafc; }
+  td.prev { color:var(--bad); font-weight:600; }
+  input.t { width:90px; text-align:right; padding:5px 7px; border:1px solid var(--line); border-radius:6px; font-size:13px; }
+  input.t::-webkit-outer-spin-button, input.t::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  input.t { -moz-appearance:textfield; appearance:textfield; }
+  .pc { font-size:12px; font-weight:700; }
+  .pc.hi { color:var(--ok); } .pc.mid { color:var(--warn); } .pc.lo { color:var(--bad); }
+  .msg { padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; display:none; }
+  .msg.ok{background:#d1fae5;color:#065f46;display:block;} .msg.err{background:#fee2e2;color:#991b1b;display:block;} .msg.info{background:#dbeafe;color:#1e40af;display:block;}
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Folio Budget</h1>
+  <nav class="nav">
+    <a class="navbtn" href="index.html">📊 Dashboard</a>
+    <a class="navbtn active" href="target.html">🎯 เป้า vs จริง</a>
+    <a class="navbtn" href="scratch.html">🗒️ พักข้อมูลช่องทาง</a>
+    <a class="navbtn" href="adsdoc.html">💸 ค่าโฆษณาจริง</a>
+    <!-- เพิ่มเมนูหน้าใหม่ตรงนี้ -->
+  </nav>
+  <div class="nav" style="margin-left:auto">
+    <span id="userTag" style="color:#dbeafe;font-size:13px"></span>
+    <a class="navbtn primary" href="form.html">📝 กรอกข้อมูลรายเดือน</a>
+    <a href="#" id="logoutBtn" class="navbtn" title="ออกจากระบบ">🚪 ออก</a>
+  </div>
+</header>
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+  <div class="bar">
+    <div><label>ปี</label><select id="year"></select></div>
+    <div style="flex:1"></div>
+    <button class="btn ghost" id="reload">🔄 รีเฟรช</button>
+    <button class="btn warn" id="autoBtn">⚡ Auto forecast</button>
+    <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
+    <button class="btn" id="saveBtn">💾 บันทึกเป้า</button>
+  </div>
+
+  <div id="noTargetBanner" style="display:none;background:#dc2626;color:#fff;border-radius:12px;padding:16px 20px;margin-bottom:18px;box-shadow:0 4px 14px rgba(220,38,38,.3)">
+    <div style="font-size:18px;font-weight:800;display:flex;align-items:center;gap:8px">⚠️ ปีนี้ยังไม่ได้ตั้งเป้า</div>
+    <div style="font-size:13px;margin-top:6px;opacity:.95">ยังไม่มีข้อมูลเป้าสำหรับปีนี้ — ระบบเป้าเริ่มทำตั้งแต่ปี 2024 เป็นต้นไป • ปีก่อนหน้านี้ไว้พัฒนาเพิ่มถ้าต้องการ • (ยอดจริงยังแสดงได้ตามปกติ)</div>
+  </div>
+
+  <div class="card">
+    <h2>🎯 Grand Total — เป้า vs ยอดจริง (รวมทุกแบรนด์ รวม Giftbox)</h2>
+    <table id="gtTbl"><thead></thead><tbody></tbody></table>
+    <div class="hint">ยอดจริง = ผลรวมยอดขายที่กรอกในแต่ละเดือน • % = ยอดจริง ÷ เป้า • คอลัมน์แดงซ้าย = ยอดจริงปีก่อน (เดือนเดียวกัน)</div>
+  </div>
+
+  <div class="card">
+    <h2>📦 เป้า vs จริง รายแบรนด์ <span style="font-weight:400;color:var(--muted);font-size:12px">(ช่องเป้าแก้ได้ • ยอดจริงดึงอัตโนมัติ)</span></h2>
+    <table id="brTbl"><thead></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const MONTHS=window.MONTHS_TH;
+const BRANDS=window.PNL_BRANDS;   // Folio Brand, Folio Art, FoFellow, Giftbox
+let DB={sales:[],targets:[]};
+const baht=n=>Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:2});
+const num=v=>{ if(v===''||v==null) return 0; const n=Number(v); return isNaN(n)?0:n; };
+
+function dataYears(){   // ปีที่มียอดขายจริง
+  return [...new Set((DB.sales||[]).map(r=>Number(r.year)))];
+}
+function years(){
+  const set=new Set((DB.sales||[]).map(r=>String(r.year)));
+  [2024,2025,2026].forEach(y=>set.add(String(y)));
+  // เพิ่มปีถัดไป (วางแผนเป้าล่วงหน้า) = ปีข้อมูลล่าสุด + 1
+  const maxData=Math.max(2026,...dataYears());
+  set.add(String(maxData+1));
+  return [...set].sort((a,b)=>b-a);
+}
+function actual(year,brand,month){
+  return DB.sales.filter(r=>String(r.year)===String(year)&&r.brand===brand&&Number(r.month)===month)
+                 .reduce((a,r)=>a+num(r.sales),0);
+}
+function grandActual(year,month){ return BRANDS.reduce((a,b)=>a+actual(year,b,month),0); }
+
+// targetsMap[brand][month] = value (string) — สำหรับปีที่เลือก
+let T={};
+function loadTargets(year){
+  T={}; BRANDS.forEach(b=>T[b]={});
+  DB.targets.filter(r=>String(r.year)===String(year)).forEach(r=>{
+    if(!T[r.brand]) T[r.brand]={};
+    T[r.brand][Number(r.month)]=r.target;
+  });
+}
+function pcClass(p){ return p>=100?'hi':(p>=80?'mid':'lo'); }
+
+function render(keepT){
+  const y=$('#year').value, yPrev=String(Number(y)-1);
+  if(!keepT) loadTargets(y);
+  // ป้ายเตือนปีที่ยังไม่ได้ตั้งเป้า (2023 ลงไป)
+  const hasTarget=DB.targets.some(r=>String(r.year)===String(y));
+  $('#noTargetBanner').style.display=hasTarget?'none':'block';
+
+  // ----- ตารางรายแบรนด์ (เป้าแก้ได้) -----
+  const bh=$('#brTbl thead'), bb=$('#brTbl tbody');
+  let h1='<tr><th rowspan="2">เดือน</th>'+BRANDS.map(b=>`<th class="grp" colspan="3">${b}</th>`).join('')+'</tr>';
+  let h2='<tr>'+BRANDS.map(()=>'<th>เป้า</th><th>จริง</th><th>%</th>').join('')+'</tr>';
+  bh.innerHTML=h1+h2;
+  let rows='';
+  for(let m=1;m<=12;m++){
+    rows+=`<tr><td>${MONTHS[m-1]}</td>`+BRANDS.map(b=>{
+      const tv=T[b][m]!=null?T[b][m]:'';
+      const av=actual(y,b,m);
+      const p=num(tv)>0?Math.round(av/num(tv)*100):null;
+      return `<td><input class="t" data-b="${b}" data-m="${m}" value="${tv}"></td>`+
+             `<td>${baht(av)}</td>`+
+             `<td>${p==null?'-':`<span class="pc ${pcClass(p)}">${p}%</span>`}</td>`;
+    }).join('')+'</tr>';
+  }
+  // แถวรวมรายแบรนด์
+  rows+=`<tr class="total"><td>รวม</td>`+BRANDS.map(b=>{
+    const tt=(()=>{let s=0;for(let m=1;m<=12;m++)s+=num(T[b][m]);return s;})();
+    const at=(()=>{let s=0;for(let m=1;m<=12;m++)s+=actual(y,b,m);return s;})();
+    const p=tt>0?Math.round(at/tt*100):null;
+    return `<td>${baht(tt)}</td><td>${baht(at)}</td><td>${p==null?'-':`<span class="pc ${pcClass(p)}">${p}%</span>`}</td>`;
+  }).join('')+'</tr>';
+  bb.innerHTML=rows;
+
+  bb.querySelectorAll('input.t').forEach(i=>i.addEventListener('input',()=>{
+    T[i.dataset.b][Number(i.dataset.m)]=i.value; renderGrand(y,yPrev);
+  }));
+
+  renderGrand(y,yPrev);
+}
+
+function renderGrand(y,yPrev){
+  const gh=$('#gtTbl thead'), gb=$('#gtTbl tbody');
+  const EX=BRANDS.filter(b=>b!=='Giftbox');   // ไม่รวม Giftbox
+  gh.innerHTML='<tr><th rowspan="2">เดือน</th>'+
+    '<th class="grp" colspan="4">ไม่รวม Giftbox</th>'+
+    '<th class="grp" colspan="4">รวม Giftbox</th></tr>'+
+    `<tr><th>ปีก่อน (${yPrev})</th><th>เป้า</th><th>จริง</th><th>%</th>`+
+    `<th>ปีก่อน (${yPrev})</th><th>เป้า</th><th>จริง</th><th>%</th></tr>`;
+  const pcell=(a,t)=>{ const p=t>0?Math.round(a/t*100):null; return `<td>${p==null?'-':`<span class="pc ${pcClass(p)}">${p}%</span>`}</td>`; };
+  let rows='', sTx=0,sAx=0,sPx=0,sT=0,sA=0,sP=0;
+  for(let m=1;m<=12;m++){
+    const tEx=EX.reduce((a,b)=>a+num(T[b][m]),0);
+    const aEx=EX.reduce((a,b)=>a+actual(y,b,m),0);
+    const pEx=EX.reduce((a,b)=>a+actual(yPrev,b,m),0);
+    const tAll=BRANDS.reduce((a,b)=>a+num(T[b][m]),0);
+    const aAll=grandActual(y,m);
+    const pAll=grandActual(yPrev,m);
+    sTx+=tEx; sAx+=aEx; sPx+=pEx; sT+=tAll; sA+=aAll; sP+=pAll;
+    rows+=`<tr><td>${MONTHS[m-1]}</td>`+
+          `<td class="prev">${baht(pEx)}</td><td>${baht(tEx)}</td><td>${baht(aEx)}</td>${pcell(aEx,tEx)}`+
+          `<td class="prev">${baht(pAll)}</td><td>${baht(tAll)}</td><td>${baht(aAll)}</td>${pcell(aAll,tAll)}</tr>`;
+  }
+  rows+=`<tr class="total"><td>รวมทั้งปี</td>`+
+        `<td class="prev">${baht(sPx)}</td><td>${baht(sTx)}</td><td>${baht(sAx)}</td>${pcell(sAx,sTx)}`+
+        `<td class="prev">${baht(sP)}</td><td>${baht(sT)}</td><td>${baht(sA)}</td>${pcell(sA,sT)}</tr>`;
+  gb.innerHTML=rows;
+}
+
+function showMsg(t,c){ const m=$('#msg'); m.textContent=t; m.className='msg '+c; if(c==='ok'||c==='err') setTimeout(()=>m.className='msg',4000); }
+
+async function autoForecast(){
+  const y=$('#year').value, yPrev=String(Number(y)-1);
+  const g=prompt(`Auto forecast ปี ${y}\nสร้างเป้าจากยอดจริงปี ${yPrev} × (1 + % เติบโต)\n\nกรอก % เติบโต (เช่น 15 = +15%):`,'15');
+  if(g==null) return;
+  const factor=1+(Number(g)||0)/100;
+  BRANDS.forEach(b=>{ for(let m=1;m<=12;m++){ const prev=actual(yPrev,b,m); T[b][m]=prev>0?Math.round(prev*factor):''; } });
+  render(true);  // keepT — คงค่าที่เพิ่งคำนวณ ไม่โหลดทับจาก DB
+  showMsg(`สร้างเป้าปี ${y} = ยอดจริงปี ${yPrev} +${g}% แล้ว — ตรวจ/แก้ได้ แล้วกดบันทึก`,'info');
+}
+
+async function saveTargets(){
+  const y=Number($('#year').value);
+  // คงเป้าปีอื่นไว้ + เขียนปีนี้ใหม่จาก T
+  const others=DB.targets.filter(r=>String(r.year)!==String(y));
+  const mine=[];
+  BRANDS.forEach(b=>{ for(let m=1;m<=12;m++){ const v=T[b][m]; if(v!==''&&v!=null&&num(v)>0) mine.push({year:y,month:m,brand:b,target:num(v)}); } });
+  const all=others.concat(mine);
+  const btn=$('#saveBtn'), orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังบันทึก...';
+  try{
+    const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'targets',rows:all,token:AUTH.token()})});
+    const j=await res.json(); if(!AUTH.check(j)) return;
+    if(!j.ok){ throw new Error(j.error||'บันทึกไม่สำเร็จ'); }
+    DB.targets=all;
+    btn.innerHTML='✅ บันทึกแล้ว!'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2000);
+    showMsg(`บันทึกเป้าปี ${y} สำเร็จ (${mine.length} รายการ)`,'ok');
+  }catch(e){ btn.innerHTML='❌ ไม่สำเร็จ'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},3000); showMsg('บันทึกไม่สำเร็จ: '+e,'err'); }
+}
+
+async function boot(){
+  if(!AUTH.guardPage('target.html')) return;
+  AUTH.applyNav();
+  showMsg('กำลังโหลด...','info');
+  try{
+    const res=await fetch(bootstrapUrl());
+    DB=await res.json();
+    if(!AUTH.check(DB)) return;
+    if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
+      if(!AUTH.canEdit()){ $('#saveBtn').disabled=true; $('#autoBtn').disabled=true; } }
+    if(!DB.targets) DB.targets=[];
+    const ysel=$('#year'); ysel.innerHTML='';
+    years().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;ysel.appendChild(o);});
+    ysel.value=String(Math.max(2026,...dataYears()));   // เปิดที่ปีล่าสุดที่มียอดขายจริง
+    render();
+    $('#msg').className='msg';
+  }catch(e){ showMsg('โหลดข้อมูลไม่ได้: '+e,'err'); }
+}
+function exportExcel(){
+  const y=$('#year').value, yPrev=String(Number(y)-1);
+  const EX=BRANDS.filter(b=>b!=='Giftbox');
+  const pc=(a,t)=>t>0?Math.round(a/t*100)+'%':'-';
+  // Grand Total
+  const g=[['เดือน','ปีก่อน(ไม่รวมGB)','เป้า(ไม่รวมGB)','จริง(ไม่รวมGB)','%','ปีก่อน(รวมGB)','เป้า(รวมGB)','จริง(รวมGB)','%']];
+  let sTx=0,sAx=0,sPx=0,sT=0,sA=0,sP=0;
+  for(let m=1;m<=12;m++){
+    const tEx=EX.reduce((a,b)=>a+num(T[b][m]),0), aEx=EX.reduce((a,b)=>a+actual(y,b,m),0), pEx=EX.reduce((a,b)=>a+actual(yPrev,b,m),0);
+    const tAll=BRANDS.reduce((a,b)=>a+num(T[b][m]),0), aAll=grandActual(y,m), pAll=grandActual(yPrev,m);
+    sTx+=tEx;sAx+=aEx;sPx+=pEx;sT+=tAll;sA+=aAll;sP+=pAll;
+    g.push([MONTHS[m-1],pEx,tEx,aEx,pc(aEx,tEx),pAll,tAll,aAll,pc(aAll,tAll)]);
+  }
+  g.push(['รวมทั้งปี',sPx,sTx,sAx,pc(sAx,sTx),sP,sT,sA,pc(sA,sT)]);
+  // รายแบรนด์
+  const head=['เดือน']; BRANDS.forEach(b=>head.push(b+' เป้า',b+' จริง',b+' %'));
+  const br=[head];
+  for(let m=1;m<=12;m++){
+    const row=[MONTHS[m-1]];
+    BRANDS.forEach(b=>{ const t=num(T[b][m]),a=actual(y,b,m); row.push(t,a,pc(a,t)); });
+    br.push(row);
+  }
+  const totRow=['รวม'];
+  BRANDS.forEach(b=>{ let t=0,a=0; for(let m=1;m<=12;m++){t+=num(T[b][m]);a+=actual(y,b,m);} totRow.push(t,a,pc(a,t)); });
+  br.push(totRow);
+  exportXLSX(`เป้าvsจริง_${y}.xlsx`,[{name:'GrandTotal',aoa:g},{name:'รายแบรนด์',aoa:br}]);
+}
+$('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
+$('#xlsxBtn').addEventListener('click',exportExcel);
+$('#year').addEventListener('change',()=>render());
+$('#reload').addEventListener('click',boot);
+$('#autoBtn').addEventListener('click',autoForecast);
+$('#saveBtn').addEventListener('click',saveTargets);
+boot();
+</script>
+</body>
+</html>

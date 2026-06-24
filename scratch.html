@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Crect x='7' y='16' width='4' height='9' rx='1' fill='%23ffffff'/%3E%3Crect x='14' y='11' width='4' height='14' rx='1' fill='%23ffffff'/%3E%3Crect x='21' y='7' width='4' height='18' rx='1' fill='%23bfdbfe'/%3E%3C/svg%3E">
+<title>พักข้อมูลช่องทาง | Folio Budget</title>
+<style>
+  :root { --bg:#f4f6f9; --card:#fff; --line:#e3e8ef; --ink:#1f2a37; --muted:#6b7280;
+          --brand:#2563eb; --ok:#059669; --warn:#d97706; --bad:#dc2626; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Segoe UI',Tahoma,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0 8px 0 0; }
+  .nav { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .navbtn { display:inline-flex; align-items:center; gap:6px; color:#fff; text-decoration:none; font-size:14px; font-weight:600;
+            background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); padding:7px 14px; border-radius:999px; transition:.15s; cursor:pointer; }
+  .navbtn:hover { background:rgba(255,255,255,.28); transform:translateY(-1px); }
+  .navbtn.active { background:#fff; color:var(--brand); border-color:#fff; }
+  .navbtn.primary { background:#fff; color:var(--brand); border-color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  .navbtn.primary:hover { background:#f0f6ff; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+  .bar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; background:var(--card); padding:16px; border-radius:12px; border:1px solid var(--line); margin-bottom:18px; }
+  .bar label { font-size:12px; color:var(--muted); margin-right:4px; }
+  select,input { padding:8px 10px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:#fff; }
+  .btn { background:var(--brand); color:#fff; border:0; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; }
+  .btn.ghost { background:#eef2f7; color:var(--ink); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; }
+  .card h2 { font-size:15px; margin:0 0 4px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:left; }
+  th { color:var(--muted); font-size:12px; }
+  td input, td select { width:100%; }
+  td.num input { text-align:right; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  input[type=number] { -moz-appearance:textfield; appearance:textfield; }
+  .delbtn { background:#fee2e2; color:#991b1b; border:0; border-radius:6px; width:28px; height:28px; cursor:pointer; font-size:14px; }
+  .msg { padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; display:none; }
+  .msg.ok{background:#d1fae5;color:#065f46;display:block;} .msg.err{background:#fee2e2;color:#991b1b;display:block;} .msg.info{background:#dbeafe;color:#1e40af;display:block;}
+  .spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hint { font-size:12px; color:var(--muted); }
+  .note-banner { background:#fffbeb; border:1px solid #fde68a; color:#92400e; padding:10px 14px; border-radius:10px; font-size:13px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Folio Budget</h1>
+  <nav class="nav">
+    <a class="navbtn" href="index.html">📊 Dashboard</a>
+    <a class="navbtn" href="target.html">🎯 เป้า vs จริง</a>
+    <a class="navbtn active" href="scratch.html">🗒️ พักข้อมูลช่องทาง</a>
+    <a class="navbtn" href="adsdoc.html">💸 ค่าโฆษณาจริง</a>
+    <!-- เพิ่มเมนูหน้าใหม่ตรงนี้ -->
+  </nav>
+  <div class="nav" style="margin-left:auto">
+    <span id="userTag" style="color:#dbeafe;font-size:13px"></span>
+    <a class="navbtn primary" href="form.html">📝 กรอกข้อมูลรายเดือน</a>
+    <a href="#" id="logoutBtn" class="navbtn" title="ออกจากระบบ">🚪 ออก</a>
+  </div>
+</header>
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+  <div class="note-banner">🗒️ หน้านี้เป็น <b>สมุดจดแยก</b> ไว้บันทึกว่าแบรนด์ไหนขายช่องทางไหน ลดเท่าไหร่ — <b>ไม่เชื่อมกับรายงาน/Dashboard</b> เก็บไว้ดูเฉยๆ</div>
+  <div class="bar">
+    <div><label>ปี</label><select id="year"></select></div>
+    <div><label>เดือน</label><select id="month"></select></div>
+    <button class="btn ghost" id="loadBtn">📂 โหลดเดือนนี้</button>
+    <div style="flex:1"></div>
+    <button class="btn ghost" id="addRow">+ เพิ่มแถว</button>
+    <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
+    <button class="btn" id="saveBtn">💾 บันทึก</button>
+  </div>
+
+  <div class="card">
+    <h2>บันทึกช่องทางขาย / ส่วนลด</h2>
+    <p class="hint" style="margin:0 0 10px">เลือกแบรนด์ + ช่องทาง กรอกยอด/ส่วนลด/หมายเหตุได้อิสระ • เพิ่มกี่แถวก็ได้ • บันทึกแยกตามปี/เดือน</p>
+    <table id="tbl">
+      <thead><tr><th style="width:160px">แบรนด์</th><th style="width:140px">ช่องทาง</th><th style="width:130px">ยอดขาย</th><th style="width:130px">ส่วนลด</th><th>หมายเหตุ</th><th style="width:40px"></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const MONTHS=window.MONTHS_TH;
+let DB={config:[],channels:[],notes:[]};
+
+function brands(){ return (DB.config||[]).map(c=>c.brand); }
+function channels(){ return (DB.channels||[]).slice().sort((a,b)=>(Number(a.order)||0)-(Number(b.order)||0)).map(c=>c.channel); }
+
+function addRow(d={}){
+  const tr=document.createElement('tr');
+  const bOpts=brands().map(b=>`<option ${d.brand===b?'selected':''}>${b}</option>`).join('');
+  const cOpts='<option value=""></option>'+channels().map(c=>`<option ${d.channel===c?'selected':''}>${c}</option>`).join('');
+  tr.innerHTML=`<td><select data-k="brand">${bOpts}</select></td>`+
+    `<td><select data-k="channel">${cOpts}</select></td>`+
+    `<td class="num"><input type="number" data-k="amount" value="${d.amount!=null?d.amount:''}"></td>`+
+    `<td class="num"><input type="number" data-k="discount" value="${d.discount!=null?d.discount:''}"></td>`+
+    `<td><input type="text" data-k="note" value="${d.note||''}"></td>`+
+    `<td><button class="delbtn" title="ลบแถว">✕</button></td>`;
+  tr.querySelector('.delbtn').addEventListener('click',()=>tr.remove());
+  $('#tbl tbody').appendChild(tr);
+}
+
+function loadMonth(){
+  const y=$('#year').value, m=$('#month').value;
+  $('#tbl tbody').innerHTML='';
+  const rows=(DB.notes||[]).filter(r=>String(r.year)===y&&String(r.month)===m);
+  if(rows.length) rows.forEach(r=>addRow(r));
+  else addRow();
+  showMsg(`โหลด ${MONTHS[m-1]} ${y} (${rows.length} แถว)`,'info');
+}
+
+function collect(){
+  const y=Number($('#year').value), m=Number($('#month').value);
+  return [...$('#tbl tbody').children].map(tr=>{
+    const o={year:y,month:m};
+    tr.querySelectorAll('[data-k]').forEach(i=>o[i.dataset.k]=i.value);
+    return o;
+  }).filter(r=>r.brand&&(r.channel||r.amount||r.discount||r.note));
+}
+
+function showMsg(t,c){ const el=$('#msg'); el.textContent=t; el.className='msg '+c; if(c==='ok'||c==='err') setTimeout(()=>el.className='msg',4000); }
+
+async function save(){
+  const y=$('#year').value, m=$('#month').value;
+  const others=(DB.notes||[]).filter(r=>!(String(r.year)===y&&String(r.month)===m));
+  const mine=collect();
+  const all=others.concat(mine);
+  const btn=$('#saveBtn'), orig=btn.innerHTML;
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังบันทึก...';
+  try{
+    const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'notes',rows:all,token:AUTH.token()})});
+    const j=await res.json(); if(!AUTH.check(j)) return;
+    if(!j.ok){ throw new Error(j.error||'บันทึกไม่สำเร็จ'); }
+    DB.notes=all;
+    btn.innerHTML='✅ บันทึกแล้ว!'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2000);
+    showMsg(`บันทึก ${MONTHS[m-1]} ${y} สำเร็จ (${mine.length} แถว)`,'ok');
+  }catch(e){ btn.innerHTML='❌ ไม่สำเร็จ'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},3000); showMsg('บันทึกไม่สำเร็จ: '+e,'err'); }
+}
+
+async function boot(){
+  if(!AUTH.guardPage('scratch.html')) return;
+  AUTH.applyNav();
+  showMsg('กำลังโหลด...','info');
+  try{
+    const res=await fetch(bootstrapUrl());
+    DB=await res.json();
+    if(!AUTH.check(DB)) return;
+    if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
+      if(!AUTH.canEdit()){ $('#saveBtn').disabled=true; $('#addRow').disabled=true; } }
+    if(!DB.notes) DB.notes=[];
+    const ysel=$('#year'); ysel.innerHTML='';
+    const ys=[...new Set((DB.notes||[]).map(r=>Number(r.year)))];
+    [2024,2025,2026,2027].forEach(y=>ys.push(y));
+    [...new Set(ys)].sort((a,b)=>b-a).forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;ysel.appendChild(o);});
+    ysel.value='2026';
+    const msel=$('#month'); msel.innerHTML='';
+    MONTHS.forEach((mn,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=mn;msel.appendChild(o);});
+    msel.value='6';
+    loadMonth();
+    $('#msg').className='msg';
+  }catch(e){ showMsg('โหลดข้อมูลไม่ได้: '+e,'err'); }
+}
+function exportExcel(){
+  const y=$('#year').value, m=$('#month').value;
+  const aoa=[['ปี','เดือน','แบรนด์','ช่องทาง','ยอดขาย','ส่วนลด','หมายเหตุ']];
+  collect().forEach(r=>aoa.push([r.year,MONTHS[r.month-1],r.brand,r.channel||'',Number(r.amount)||'',Number(r.discount)||'',r.note||'']));
+  exportXLSX(`พักข้อมูลช่องทาง_${MONTHS[m-1]}${y}.xlsx`,[{name:'ช่องทาง',aoa}]);
+}
+$('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
+$('#xlsxBtn').addEventListener('click',exportExcel);
+$('#loadBtn').addEventListener('click',loadMonth);
+$('#addRow').addEventListener('click',()=>addRow());
+$('#saveBtn').addEventListener('click',save);
+boot();
+</script>
+</body>
+</html>
