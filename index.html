@@ -222,7 +222,8 @@ function render(){
   const ds=rows.reduce((a,r)=>a+Number(r.discount||0),0);
   const disPct=fp>0?ds/fp:0;
   const adsPct=sales>0?ads/sales:0;
-  const gpTotal=pnlBrandList().reduce((a,br)=>a+brandAgg(br,y).gp,0);
+  // GP รวม: ถ้าเลือกแบรนด์เดียว = GP แบรนด์นั้น, ถ้าทุกแบรนด์ = รวม pnl ทุกแบรนด์ (ให้สอดคล้องกับยอดขายที่กรองไว้)
+  const gpTotal = (b==='ALL') ? pnlBrandList().reduce((a,br)=>a+brandAgg(br,y).gp,0) : brandAgg(b,y).gp;
 
   const chgTxt=(v,inv)=>{
     if(v===null) return '';
