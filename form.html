@@ -99,7 +99,7 @@
       <thead><tr><th>แบรนด์</th><th>GP%</th><th>ค่าเช่า/อื่นๆ</th><th>ค่าคอมให้ร้านค้า</th><th>Influencer</th><th>Collaborate</th></tr></thead>
       <tbody></tbody>
     </table>
-    <p class="hint">GP% กรอกเป็นตัวเลข เช่น 21 = 21% ระบบจะคำนวณบาทจาก ยอดขาย×GP% แล้วบันทึกล็อกถาวร • โหลดเดือนเก่าจะแสดง GP% ย้อนกลับให้อัตโนมัติ</p>
+    <p class="hint">GP% กรอกเป็นตัวเลข เช่น 21 = 21% ระบบจะคำนวณบาทจาก ยอดขาย×GP% แล้วบันทึกล็อกถาวร • โหลดเดือนเก่าจะแสดง GP% ย้อนกลับให้อัตโนมัติ • <b style="color:var(--bad)">⚠️ ต้องกรอก "ยอดขาย" ของแบรนด์นั้นด้วย ไม่งั้น GP% จะไม่ถูกบันทึก (ช่องจะขึ้นสีแดงเตือน)</b></p>
   </div>
 
   <div class="card">
@@ -168,7 +168,7 @@ function buildSales() {
       <td><input type="number" step="1" data-f="qty"></td>`;
     tr.dataset.brand=b.brand;
     tb.appendChild(tr);
-    tr.addEventListener('input', ()=>{ recalcRow(tr); updateSummary(); });
+    tr.addEventListener('input', ()=>{ recalcRow(tr); updateSummary(); markGpWarning(); });
   });
 }
 // ราคาเต็ม = ยอดขายหลังลด + ส่วนลด (อัตโนมัติ) ; ส่วนลด% = ส่วนลด ÷ ราคาเต็ม
@@ -252,8 +252,21 @@ function buildExp(){
         ? `<td><input type="number" step="0.1" min="0" max="100" placeholder="เช่น 21" data-e="gp" style="width:90px"></td>`
         : `<td><input type="number" step="0.01" data-e="${f}"></td>`
     ).join('');
-    tr.addEventListener('input', updateSummary);
+    tr.addEventListener('input', ()=>{ updateSummary(); markGpWarning(); });
     tb.appendChild(tr);
+  });
+}
+// ไฮไลท์แดงช่อง GP% ถ้ากรอกไว้แต่ยอดขายยังว่าง/เป็น 0 (GP จะไม่ถูกบันทึกถ้าไม่มียอดขาย)
+function markGpWarning(){
+  [...$('#expTbl tbody').children].forEach(tr=>{
+    const gpEl=tr.querySelector('[data-e=gp]');
+    const gpPct=Number(gpEl.value)||0;
+    const sTr=[...$('#salesTbl tbody').children].find(t=>t.dataset.brand===tr.dataset.brand);
+    const sales=sTr?Number(sTr.querySelector('[data-f=sales]').value)||0:0;
+    const warn=gpPct>0 && sales<=0;
+    gpEl.style.borderColor = warn ? 'var(--bad)' : '';
+    gpEl.style.background = warn ? '#fee2e2' : '';
+    gpEl.title = warn ? 'ยังไม่ได้กรอกยอดขาย — GP% นี้จะไม่ถูกบันทึก!' : '';
   });
 }
 
@@ -291,6 +304,7 @@ function loadMonth(){
   const sd=DB.side.filter(r=>String(r.year)===y&&String(r.month)===m);
   if(sd.length){ $('#sideTbl tbody').innerHTML=''; sd.forEach(r=>addSideRow(r.project,r.amount,r.note||'')); }
   updateSummary();
+  markGpWarning();
   showMsg(`โหลดข้อมูล ${MONTHS_TH[m-1]} ${y} แล้ว`, 'info');
 }
 
@@ -324,10 +338,26 @@ function collect(){
   return { year:y, month:m, sales, ads, side };
 }
 
+function checkGpWithoutSales(){
+  // หา brand ที่กรอก GP% ไว้แต่ยังไม่มียอดขาย -> GP จะไม่ถูกบันทึก (คำนวณจาก ยอดขาย×GP%)
+  const bad=[];
+  [...$('#expTbl tbody').children].forEach(tr=>{
+    const gpPct=Number(tr.querySelector('[data-e=gp]').value)||0;
+    const sTr=[...$('#salesTbl tbody').children].find(t=>t.dataset.brand===tr.dataset.brand);
+    const sales=sTr?Number(sTr.querySelector('[data-f=sales]').value)||0:0;
+    if(gpPct>0 && sales<=0) bad.push(tr.dataset.brand);
+  });
+  return bad;
+}
 async function save(){
   const payload=collect();
   if(!payload.sales.length && !payload.ads.length && !payload.side.length){
     showMsg('ยังไม่มีข้อมูลให้บันทึก','err'); return;
+  }
+  const badGp=checkGpWithoutSales();
+  if(badGp.length){
+    const ok=confirm(`⚠️ แบรนด์ ${badGp.join(', ')} กรอก GP% ไว้ แต่ยังไม่ได้กรอกยอดขาย\n\nGP คำนวณจาก ยอดขาย×GP% — ถ้าไม่กรอกยอดขาย ข้อมูล GP% นี้จะ "ไม่ถูกบันทึก" เลย\n\nกด ตกลง = บันทึกต่อ (ยอมรับว่า GP แบรนด์นี้จะไม่ถูกบันทึก)\nกด ยกเลิก = กลับไปกรอกยอดขายก่อน`);
+    if(!ok) return;
   }
   const btn=$('#saveBtn'), orig=btn.innerHTML;
   btn.disabled=true; btn.innerHTML='<span class="spinner"></span>กำลังบันทึก...'; showMsg('กำลังบันทึก...','info');
