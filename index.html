@@ -416,7 +416,8 @@ function renderSideExpense(y,mFrom=1,mTo=12){
 function renderMonitorAds(y,mFrom=1,mTo=12){
   const tb=$('#monAdsTbl tbody'); tb.innerHTML='';
   const pnl=pnlBrandList();
-  const monitors=DB.config.filter(c=>(c.type==='monitor'||c.type==='both')&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
+  // ไม่เอาแบรนด์ type=both มาซ้ำ เพราะขึ้นในตาราง P&L ด้านบนแล้ว
+  const monitors=DB.config.filter(c=>c.type==='monitor'&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
   const extra=brandsAll().filter(b=>!pnl.includes(b)&&!monitors.includes(b));
   [...monitors,...extra].forEach(b=>{
     const a=(mFrom===1&&mTo===12)?sumAds(y,b):monthly(DB.ads,y,b,'amount').slice(mFrom-1,mTo).reduce((s,v)=>s+v,0);
@@ -605,7 +606,7 @@ function exportExcel(){
 
   // 5. ค่าโฆษณาแบรนด์ Monitor (ตามช่วงเดือนที่เลือก)
   const pnlList=pnlBrandList();
-  const monitors=DB.config.filter(c=>(c.type==='monitor'||c.type==='both')&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
+  const monitors=DB.config.filter(c=>c.type==='monitor'&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
   const extra=brandsAll().filter(bb=>!pnlList.includes(bb)&&!monitors.includes(bb));
   const monAoa=[['แบรนด์','ค่าโฆษณา']];
   [...monitors,...extra].forEach(bb=>{
