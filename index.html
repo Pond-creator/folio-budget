@@ -86,7 +86,8 @@
   <div id="msg" class="msg"></div>
   <div class="bar">
     <div><label>ปี</label><select id="year"></select></div>
-    <div><label>เดือน</label><select id="month"><option value="ALL">ทั้งปี</option></select></div>
+    <div><label>เดือน</label><select id="monthFrom"></select></div>
+    <div><label>ถึง</label><select id="monthTo"></select></div>
     <div><label>แบรนด์</label><select id="brand"><option value="ALL">ทุกแบรนด์</option></select></div>
     <div style="flex:1"></div>
     <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
@@ -201,41 +202,39 @@ function monthly(arr,year,brand,valKey){
 }
 
 function render(){
-  const y=$('#year').value, b=$('#brand').value, m=$('#month').value;   // m: 'ALL' หรือ '1'-'12'
+  const y=$('#year').value, b=$('#brand').value;
+  const rawFrom=Number($('#monthFrom').value), rawTo=Number($('#monthTo').value);
+  const mFrom=Math.min(rawFrom,rawTo), mTo=Math.max(rawFrom,rawTo);   // กันเลือกสลับ จาก>ถึง
+  const isFullYear=(mFrom===1&&mTo===12);
   const yPrev=String(Number(y)-1);
   // ป้ายเตือน: ปีที่ยังไม่มีข้อมูลส่วนลด (data-driven — migrate เพิ่มแล้วป้ายหายเอง)
   const yearHasDisc=DB.sales.some(r=>String(r.year)===String(y)&&Number(r.discount||0)>0);
   $('#incompleteBanner').style.display=yearHasDisc?'none':'block';
-  $('#periodLabel').textContent = (m==='ALL') ? `📅 แสดงข้อมูล: ม.ค. – ธ.ค. ${y}` : `📅 แสดงข้อมูล: ${MONTHS_TH[Number(m)-1]} ${y}`;
+  $('#periodLabel').textContent = isFullYear ? `📅 แสดงข้อมูล: ม.ค. – ธ.ค. ${y}`
+    : (mFrom===mTo ? `📅 แสดงข้อมูล: ${MONTHS_TH[mFrom-1]} ${y}` : `📅 แสดงข้อมูล: ${MONTHS_TH[mFrom-1]} – ${MONTHS_TH[mTo-1]} ${y}`);
   const salesM=monthly(DB.sales,y,b,'sales');
   const adsM=monthly(DB.ads,y,b,'amount');
   const salesPrevM=monthly(DB.sales,yPrev,b,'sales');
   const adsPrevM=monthly(DB.ads,yPrev,b,'amount');
 
-  let sales,ads,salesPrevSame,adsPrevSame,periodLabel;
-  if(m==='ALL'){
-    sales=sumSales(y,b); ads=sumAds(y,b);
-    // นับเดือนที่มีข้อมูลในปีปัจจุบัน
-    const monthsWithData=salesM.filter(v=>v>0).length||1;
-    salesPrevSame=salesPrevM.slice(0,monthsWithData).reduce((a,v)=>a+v,0);
-    adsPrevSame=adsPrevM.slice(0,monthsWithData).reduce((a,v)=>a+v,0);
-    periodLabel=`${monthsWithData} เดือนเท่า`;
-  } else {
-    const mi=Number(m)-1;
-    sales=salesM[mi]; ads=adsM[mi];
-    salesPrevSame=salesPrevM[mi]; adsPrevSame=adsPrevM[mi];
-    periodLabel=`${MONTHS_TH[mi]} ปีก่อน`;
-  }
+  const salesRange=salesM.slice(mFrom-1,mTo), adsRange=adsM.slice(mFrom-1,mTo);
+  const salesPrevRange=salesPrevM.slice(mFrom-1,mTo), adsPrevRange=adsPrevM.slice(mFrom-1,mTo);
+  // นับเดือนที่มีข้อมูลในช่วงที่เลือกของปีปัจจุบัน (กันเทียบปีก่อนเดือนที่ยังไม่ถึง)
+  const monthsWithData=salesRange.filter(v=>v>0).length||1;
+  const sales=salesRange.reduce((a,v)=>a+v,0), ads=adsRange.reduce((a,v)=>a+v,0);
+  const salesPrevSame=salesPrevRange.slice(0,monthsWithData).reduce((a,v)=>a+v,0);
+  const adsPrevSame=adsPrevRange.slice(0,monthsWithData).reduce((a,v)=>a+v,0);
+  const periodLabel=isFullYear?`${monthsWithData} เดือนเท่า`:(mFrom===mTo?`${MONTHS_TH[mFrom-1]} ปีก่อน`:`${MONTHS_TH[mFrom-1]}-${MONTHS_TH[mTo-1]} ปีก่อน`);
   const salesChg=salesPrevSame>0?((sales-salesPrevSame)/salesPrevSame*100):null;
   const adsChg=adsPrevSame>0?((ads-adsPrevSame)/adsPrevSame*100):null;
 
-  const rows=DB.sales.filter(r=>String(r.year)===y&&(b==='ALL'||r.brand===b)&&(m==='ALL'||Number(r.month)===Number(m)));
+  const rows=DB.sales.filter(r=>String(r.year)===y&&(b==='ALL'||r.brand===b)&&Number(r.month)>=mFrom&&Number(r.month)<=mTo);
   const fp=rows.reduce((a,r)=>a+Number(r.full_price||0),0);
   const ds=rows.reduce((a,r)=>a+Number(r.discount||0),0);
   const disPct=fp>0?ds/fp:0;
   const adsPct=sales>0?ads/sales:0;
-  // GP รวม: ถ้าเลือกแบรนด์เดียว = GP แบรนด์นั้น, ถ้าทุกแบรนด์ = รวม pnl ทุกแบรนด์ (ให้สอดคล้องกับยอดขาย/เดือนที่กรองไว้)
-  const gpTotal = (b==='ALL') ? pnlBrandList().reduce((a,br)=>a+brandAgg(br,y,m).gp,0) : brandAgg(b,y,m).gp;
+  // GP รวม: ถ้าเลือกแบรนด์เดียว = GP แบรนด์นั้น, ถ้าทุกแบรนด์ = รวม pnl ทุกแบรนด์ (ให้สอดคล้องกับยอดขาย/ช่วงเดือนที่กรองไว้)
+  const gpTotal = (b==='ALL') ? pnlBrandList().reduce((a,br)=>a+brandAgg(br,y,mFrom,mTo).gp,0) : brandAgg(b,y,mFrom,mTo).gp;
 
   const chgTxt=(v,inv)=>{
     if(v===null) return '';
@@ -252,20 +251,21 @@ function render(){
     ['ส่วนลดเฉลี่ย %',fp>0?pct(disPct):'—',fp>0?`฿${baht(ds)}`:'(ปีเก่ายังไม่มีข้อมูลส่วนลด)'],
   ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
 
-  drawSales(salesM, salesPrevM, m);
-  drawAds(salesM, adsM, m);
+  drawSales(salesM, salesPrevM, mFrom, mTo);
+  drawAds(salesM, adsM, mFrom, mTo);
   drawYear(b);
-  renderPnL(y,m);
-  renderMonitorAds(y,m);
-  renderSideExpense(y,m);
+  renderPnL(y,mFrom,mTo);
+  renderMonitorAds(y,mFrom,mTo);
+  renderSideExpense(y,mFrom,mTo);
   renderTargetGrand(y);
   renderCfgEditors(y);
 }
 
-function drawSales(data, prevData, selMonth='ALL'){
+function drawSales(data, prevData, mFrom=1, mTo=12){
   const ctx=$('#chSales'); if(chSales)chSales.destroy();
   const yoy=data.map((s,i)=>s>0&&prevData[i]>0?+((s-prevData[i])/prevData[i]*100).toFixed(1):null);
-  const bg=data.map((_,i)=>(selMonth!=='ALL'&&i===Number(selMonth)-1)?'#f59e0b':'#2563eb');
+  const isFull=(mFrom===1&&mTo===12);
+  const bg=data.map((_,i)=>(!isFull&&i>=mFrom-1&&i<=mTo-1)?'#f59e0b':'#2563eb');
   const yoyPlugin={id:'yoypct',afterDatasetsDraw(chart){
     const c=chart.ctx,meta=chart.getDatasetMeta(0);
     meta.data.forEach((bar,i)=>{
@@ -280,10 +280,11 @@ function drawSales(data, prevData, selMonth='ALL'){
     {type:'line',label:'ปีก่อน',data:prevData,borderColor:'#94a3b8',borderDash:[4,3],tension:.3,pointRadius:3,fill:false,order:0}
   ]},options:{...COMMON,plugins:{legend:{display:true,labels:{boxWidth:12,font:{size:11}}},tooltip:COMMON.plugins.tooltip}},plugins:[yoyPlugin]});
 }
-function drawAds(sales,ads,selMonth='ALL'){
+function drawAds(sales,ads,mFrom=1,mTo=12){
   const ctx=$('#chAds'); if(chAds)chAds.destroy();
   const pv=sales.map((s,i)=>s>0&&ads[i]>0?+(ads[i]/s*100).toFixed(1):null);
-  const colors=sales.map((_,i)=>(selMonth!=='ALL'&&i===Number(selMonth)-1)?'#f59e0b':'#bfdbfe');
+  const isFull=(mFrom===1&&mTo===12);
+  const colors=sales.map((_,i)=>(!isFull&&i>=mFrom-1&&i<=mTo-1)?'#f59e0b':'#bfdbfe');
   const adsPctPlugin2={id:'adspct2',afterDatasetsDraw(chart){
     const c=chart.ctx,meta=chart.getDatasetMeta(0);
     meta.data.forEach((bar,i)=>{
@@ -322,9 +323,9 @@ function drawYear(b){
   },plugins:[pctPlugin]});
 }
 
-// รวมยอดต่อแบรนด์ในปีที่เลือก (m='ALL'=ทั้งปี หรือ 1-12=เดือนเดียว)
-function brandAgg(brand,y,m='ALL'){
-  const mOk=r=>m==='ALL'||Number(r.month)===Number(m);
+// รวมยอดต่อแบรนด์ในปีที่เลือก กรองช่วงเดือน mFrom-mTo (ค่าเริ่มต้น 1-12 = ทั้งปี)
+function brandAgg(brand,y,mFrom=1,mTo=12){
+  const mOk=r=>{const mm=Number(r.month); return mm>=mFrom&&mm<=mTo;};
   const sr=DB.sales.filter(r=>String(r.year)===String(y)&&r.brand===brand&&mOk(r));
   const sales=sr.reduce((a,r)=>a+Number(r.sales||0),0);
   const disc=sr.reduce((a,r)=>a+Number(r.discount||0),0);
@@ -344,17 +345,17 @@ function brandRate(brand,y){
   return { cost:(c.cost_rate!==''&&c.cost_rate!=null)?Number(c.cost_rate):base.cost };
 }
 // คำนวณ P&L 1 แบรนด์ (GP = ค่าที่กรอกในฟอร์มรายเดือน, snapshot)
-function pnl(brand,y,m='ALL'){
-  const g=brandAgg(brand,y,m);
+function pnl(brand,y,mFrom=1,mTo=12){
+  const g=brandAgg(brand,y,mFrom,mTo);
   const rate=brandRate(brand,y);
   const price=g.sales+g.disc;              // ราคาขาย (ราคาเต็ม)
   const cost=price*rate.cost/100;          // ต้นทุน (จากต้นทุน%)
   const net=price-cost-g.disc-g.rent-g.ads-g.gp-g.inf-g.collab-g.comm;  // คงเหลือจริง
   return {price,cost,disc:g.disc,rent:g.rent,ads:g.ads,gp:g.gp,inf:g.inf,collab:g.collab,comm:g.comm,revenue:g.sales,net};
 }
-function renderPnL(y,m='ALL'){
-  const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y,m);return g.sales||g.ads;});
-  const data=brands.map(b=>pnl(b,y,m));
+function renderPnL(y,mFrom=1,mTo=12){
+  const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y,mFrom,mTo);return g.sales||g.ads;});
+  const data=brands.map(b=>pnl(b,y,mFrom,mTo));
   const sum=k=>data.reduce((a,d)=>a+d[k],0);
   const head=$('#pnlTbl thead'), body=$('#pnlTbl tbody');
   head.innerHTML='<tr><th>รายการ</th>'+brands.map(b=>`<th>${b}</th>`).join('')+'<th>รวม</th></tr>';
@@ -401,9 +402,9 @@ function renderTargetGrand(y){
     `<td class="gt-prev">฿${baht(sP)}</td><td>฿${baht(sT)}</td><td>฿${baht(sA)}</td><td>${pcS(pc(sA,sT))}</td></tr>`;
   tb.innerHTML=rows;
 }
-function renderSideExpense(y,m='ALL'){
+function renderSideExpense(y,mFrom=1,mTo=12){
   const tb=$('#sideTbl tbody'); tb.innerHTML='';
-  const rows=DB.side.filter(r=>String(r.year)===String(y)&&(m==='ALL'||Number(r.month)===Number(m))).sort((a,b)=>Number(a.month)-Number(b.month));
+  const rows=DB.side.filter(r=>String(r.year)===String(y)&&Number(r.month)>=mFrom&&Number(r.month)<=mTo).sort((a,b)=>Number(a.month)-Number(b.month));
   if(!rows.length){ tb.innerHTML='<tr><td colspan="4" style="color:var(--muted);text-align:center">ไม่มีข้อมูล</td></tr>'; $('#sideTotal').textContent=''; return; }
   let total=0;
   rows.forEach(r=>{
@@ -412,13 +413,13 @@ function renderSideExpense(y,m='ALL'){
   });
   $('#sideTotal').textContent='รวม ฿'+baht(total);
 }
-function renderMonitorAds(y,m='ALL'){
+function renderMonitorAds(y,mFrom=1,mTo=12){
   const tb=$('#monAdsTbl tbody'); tb.innerHTML='';
   const pnl=pnlBrandList();
   const monitors=DB.config.filter(c=>(c.type==='monitor'||c.type==='both')&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
   const extra=brandsAll().filter(b=>!pnl.includes(b)&&!monitors.includes(b));
   [...monitors,...extra].forEach(b=>{
-    const a=(m==='ALL')?sumAds(y,b):monthly(DB.ads,y,b,'amount')[m-1];
+    const a=(mFrom===1&&mTo===12)?sumAds(y,b):monthly(DB.ads,y,b,'amount').slice(mFrom-1,mTo).reduce((s,v)=>s+v,0);
     tb.innerHTML+=`<tr><td>${b}</td><td>฿${baht(a)}</td></tr>`;
   });
 }
@@ -497,8 +498,12 @@ async function saveCfg(){
 function initFilters(){
   const y=$('#year'); y.innerHTML='';
   years().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;y.appendChild(o);});
-  const mo=$('#month'); mo.innerHTML='<option value="ALL">ทั้งปี</option>';
-  MONTHS_TH.forEach((mn,i)=>{const o=document.createElement('option');o.value=i+1;o.textContent=mn;mo.appendChild(o);});
+  const mf=$('#monthFrom'), mt=$('#monthTo'); mf.innerHTML=''; mt.innerHTML='';
+  MONTHS_TH.forEach((mn,i)=>{
+    mf.appendChild(new Option(mn,i+1));
+    mt.appendChild(new Option(mn,i+1));
+  });
+  mf.value=1; mt.value=12;   // ค่าเริ่มต้น = ทั้งปี (ม.ค.-ธ.ค.)
   const b=$('#brand');
   brandsAll().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;b.appendChild(o);});
 }
@@ -586,7 +591,8 @@ $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();})
 $('#addUserBtn').addEventListener('click',addUser);
 $('#xlsxBtn').addEventListener('click',exportExcel);
 $('#year').addEventListener('change',render);
-$('#month').addEventListener('change',render);
+$('#monthFrom').addEventListener('change',render);
+$('#monthTo').addEventListener('change',render);
 $('#brand').addEventListener('change',render);
 $('#reload').addEventListener('click',load);
 $('#saveCfg').addEventListener('click',saveCfg);
