@@ -571,21 +571,71 @@ async function load(){
 }
 function exportExcel(){
   const y=$('#year').value;
-  const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y);return g.sales||g.ads;});
-  const data=brands.map(b=>pnl(b,y));
+  const rawFrom=Number($('#monthFrom').value), rawTo=Number($('#monthTo').value);
+  const mFrom=Math.min(rawFrom,rawTo), mTo=Math.max(rawFrom,rawTo);
+  const yPrev=String(Number(y)-1);
+  const sheets=[];
+
+  // 1. P&L (ตามช่วงเดือนที่เลือกบนหน้าจอ)
+  const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y,mFrom,mTo);return g.sales||g.ads;});
+  const data=brands.map(b=>pnl(b,y,mFrom,mTo));
   const sum=k=>data.reduce((a,d)=>a+d[k],0);
-  // P&L
   const items=[['ราคาขาย','price'],['ต้นทุน','cost'],['ส่วนลด','disc'],['ค่าเช่า/อื่นๆ','rent'],['ค่าโฆษณา','ads'],['GP','gp'],['Influencer','inf'],['Collaborate','collab'],['คอมร้านค้า','comm'],['รายได้(หลังลด)','revenue'],['คงเหลือจริง','net']];
   const pnlAoa=[['รายการ',...brands,'รวม']];
   items.forEach(([label,k])=>pnlAoa.push([label,...data.map(d=>d[k]),sum(k)]));
-  // ยอดขายรายเดือน
+  sheets.push({name:'P&L',aoa:pnlAoa});
+
+  // 2. ยอดขายรายเดือน (ทุกแบรนด์ P&L, ทั้งปี)
   const salesAoa=[['เดือน',...brands]];
   for(let m=1;m<=12;m++) salesAoa.push([MONTHS_TH[m-1],...brands.map(b=>monthly(DB.sales,y,b,'sales')[m-1])]);
-  // ค่าโฆษณารายเดือน (ทุกแบรนด์ที่มีแอด)
+  sheets.push({name:'ยอดขายรายเดือน',aoa:salesAoa});
+
+  // 3. ค่าโฆษณารายเดือน (ทุกแบรนด์ที่มีแอด, ทั้งปี)
   const adsBrands=[...new Set(DB.ads.filter(r=>String(r.year)===String(y)).map(r=>r.brand))];
   const adsAoa=[['เดือน',...adsBrands]];
   for(let m=1;m<=12;m++) adsAoa.push([MONTHS_TH[m-1],...adsBrands.map(b=>monthly(DB.ads,y,b,'amount')[m-1])]);
-  exportXLSX(`Dashboard_${y}.xlsx`,[{name:'P&L',aoa:pnlAoa},{name:'ยอดขายรายเดือน',aoa:salesAoa},{name:'ค่าโฆษณารายเดือน',aoa:adsAoa}]);
+  sheets.push({name:'ค่าโฆษณารายเดือน',aoa:adsAoa});
+
+  // 4. เทียบยอดขายรายปี (แบรนด์ตามตัวกรองด้านบน)
+  const selB=$('#brand').value;
+  const ys=years().slice().sort((a,c)=>a-c);
+  const yearAoa=[['ปี','ยอดขาย','ค่าแอด','ค่าแอด%']];
+  ys.forEach(yy=>{ const sv=sumSales(yy,selB), av=sumAds(yy,selB); yearAoa.push([yy,sv,av,sv>0?+(av/sv*100).toFixed(1):'']); });
+  sheets.push({name:'เทียบยอดขายรายปี',aoa:yearAoa});
+
+  // 5. ค่าโฆษณาแบรนด์ Monitor (ตามช่วงเดือนที่เลือก)
+  const pnlList=pnlBrandList();
+  const monitors=DB.config.filter(c=>(c.type==='monitor'||c.type==='both')&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
+  const extra=brandsAll().filter(bb=>!pnlList.includes(bb)&&!monitors.includes(bb));
+  const monAoa=[['แบรนด์','ค่าโฆษณา']];
+  [...monitors,...extra].forEach(bb=>{
+    const a=(mFrom===1&&mTo===12)?sumAds(y,bb):monthly(DB.ads,y,bb,'amount').slice(mFrom-1,mTo).reduce((s,v)=>s+v,0);
+    monAoa.push([bb,a]);
+  });
+  sheets.push({name:'ค่าโฆษณา Monitor',aoa:monAoa});
+
+  // 6. ค่าใช้จ่ายโปรเจคเสริม (ตามช่วงเดือนที่เลือก)
+  const sideRows=DB.side.filter(r=>String(r.year)===String(y)&&Number(r.month)>=mFrom&&Number(r.month)<=mTo).sort((a,c)=>Number(a.month)-Number(c.month));
+  const sideAoa=[['เดือน','โปรเจค','จำนวนเงิน','หมายเหตุ']];
+  sideRows.forEach(r=>sideAoa.push([MONTHS_TH[Number(r.month)-1]||r.month,r.project||'',Number(r.amount)||0,r.note||'']));
+  if(!sideRows.length) sideAoa.push(['ไม่มีข้อมูล','','','']);
+  sheets.push({name:'ค่าใช้จ่ายเสริม',aoa:sideAoa});
+
+  // 7. เป้า vs ยอดจริง (Grand Total ทั้งปี — ไม่ผูกกับตัวกรองเดือน เหมือนบนหน้าจอ)
+  const BR=PNL_BRANDS, EX=BR.filter(bb=>bb!=='Giftbox');
+  const tgts=DB.targets||[];
+  const tgt=(bb,mm)=>{ const r=tgts.find(x=>String(x.year)===String(y)&&x.brand===bb&&Number(x.month)===mm); return r?Number(r.target||0):0; };
+  const actY={}, actP={}; BR.forEach(bb=>{ actY[bb]=monthly(DB.sales,y,bb,'sales'); actP[bb]=monthly(DB.sales,yPrev,bb,'sales'); });
+  const gtAoa=[['เดือน','ปีก่อน(ไม่รวมGB)','เป้า(ไม่รวมGB)','จริง(ไม่รวมGB)','%(ไม่รวมGB)','ปีก่อน(รวมGB)','เป้า(รวมGB)','จริง(รวมGB)','%(รวมGB)']];
+  const pc=(a,t)=>t>0?Math.round(a/t*100)+'%':'-';
+  for(let mm=1;mm<=12;mm++){
+    const tEx=EX.reduce((a,bb)=>a+tgt(bb,mm),0), aEx=EX.reduce((a,bb)=>a+actY[bb][mm-1],0), pEx=EX.reduce((a,bb)=>a+actP[bb][mm-1],0);
+    const tAll=BR.reduce((a,bb)=>a+tgt(bb,mm),0), aAll=BR.reduce((a,bb)=>a+actY[bb][mm-1],0), pAll=BR.reduce((a,bb)=>a+actP[bb][mm-1],0);
+    gtAoa.push([MONTHS_TH[mm-1],pEx,tEx,aEx,pc(aEx,tEx),pAll,tAll,aAll,pc(aAll,tAll)]);
+  }
+  sheets.push({name:'เป้า vs ยอดจริง',aoa:gtAoa});
+
+  exportXLSX(`Dashboard_${y}.xlsx`,sheets);
 }
 $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
 $('#addUserBtn').addEventListener('click',addUser);
