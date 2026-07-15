@@ -245,9 +245,9 @@ function render(){
   $('#kpis').innerHTML=[
     ['ยอดขายรวม','฿'+baht(sales),`ปีก่อน ฿${baht(salesPrevSame)} (${periodLabel})${chgTxt(salesChg)}`],
     ['ค่าโฆษณารวม','฿'+baht(ads),`ปีก่อน ฿${baht(adsPrevSame)} (${periodLabel})${chgTxt(adsChg,true)}`],
-    ['ค่าแอด % ต่อยอด',sales>0?pct(adsPct):'—',''],
-    ['GP %',sales>0?pct(gpTotal/sales):'—',''],
-    ['ส่วนลดเฉลี่ย %',fp>0?pct(disPct):'—',fp>0?'':'(ปีเก่ายังไม่มีข้อมูลส่วนลด)'],
+    ['ค่าแอด % ต่อยอด',sales>0?pct(adsPct):'—',sales>0?`฿${baht(ads)}`:''],
+    ['GP %',sales>0?pct(gpTotal/sales):'—',sales>0?`฿${baht(gpTotal)}`:''],
+    ['ส่วนลดเฉลี่ย %',fp>0?pct(disPct):'—',fp>0?`฿${baht(ds)}`:'(ปีเก่ายังไม่มีข้อมูลส่วนลด)'],
   ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
 
   drawSales(salesM, salesPrevM, m);
