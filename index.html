@@ -284,7 +284,7 @@ function drawAds(sales,ads,mFrom=1,mTo=12){
   const ctx=$('#chAds'); if(chAds)chAds.destroy();
   const pv=sales.map((s,i)=>s>0&&ads[i]>0?+(ads[i]/s*100).toFixed(1):null);
   const isFull=(mFrom===1&&mTo===12);
-  const colors=sales.map((_,i)=>(!isFull&&i>=mFrom-1&&i<=mTo-1)?'#f59e0b':'#bfdbfe');
+  const colors=sales.map((_,i)=>(!isFull&&i>=mFrom-1&&i<=mTo-1)?'#0ea5e9':'#bfdbfe');
   const adsPctPlugin2={id:'adspct2',afterDatasetsDraw(chart){
     const c=chart.ctx,meta=chart.getDatasetMeta(0);
     meta.data.forEach((bar,i)=>{
