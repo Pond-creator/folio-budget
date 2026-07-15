@@ -98,6 +98,7 @@
     <div style="font-size:13px;margin-top:6px;opacity:.95">ปีนี้ <b>ขาดข้อมูลส่วนลดการขาย</b> (ส่วนลด/ราคาเต็มยังไม่ได้นำเข้า) — ตัวเลขกำไรและส่วนลด% อาจไม่ครบถ้วน • ข้อมูลสมบูรณ์เต็มรูปแบบเริ่มที่ปี 2024 เป็นต้นไป • ไว้พัฒนาเพิ่มถ้าต้องการ</div>
   </div>
 
+  <div id="periodLabel" style="font-size:14px;font-weight:700;color:var(--brand);margin-bottom:10px"></div>
   <div class="kpis" id="kpis"></div>
 
   <div class="grid2">
@@ -205,6 +206,7 @@ function render(){
   // ป้ายเตือน: ปีที่ยังไม่มีข้อมูลส่วนลด (data-driven — migrate เพิ่มแล้วป้ายหายเอง)
   const yearHasDisc=DB.sales.some(r=>String(r.year)===String(y)&&Number(r.discount||0)>0);
   $('#incompleteBanner').style.display=yearHasDisc?'none':'block';
+  $('#periodLabel').textContent = (m==='ALL') ? `📅 แสดงข้อมูล: ม.ค. – ธ.ค. ${y}` : `📅 แสดงข้อมูล: ${MONTHS_TH[Number(m)-1]} ${y}`;
   const salesM=monthly(DB.sales,y,b,'sales');
   const adsM=monthly(DB.ads,y,b,'amount');
   const salesPrevM=monthly(DB.sales,yPrev,b,'sales');
