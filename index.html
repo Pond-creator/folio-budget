@@ -376,8 +376,7 @@ function renderPnL(y,mFrom=1,mTo=12){
     row('7. Influencer','inf')+
     row('8. Collaborate','collab')+
     row('9. คอมให้ร้านค้า','comm')+
-    row('รายได้ (ยอดขายหลังลด)','revenue',{top:true,hl:true,note:'ก่อนหักต้นทุน'})+
-    row('คงเหลือจริง','net',{bold:true});
+    row('คงเหลือจริง','net',{bold:true,top:true});
 }
 function renderTargetGrand(y){
   const th=$('#gtDashTbl thead'), tb=$('#gtDashTbl tbody'); if(!tb) return;
@@ -419,10 +418,13 @@ function renderMonitorAds(y,mFrom=1,mTo=12){
   // ไม่เอาแบรนด์ type=both มาซ้ำ เพราะขึ้นในตาราง P&L ด้านบนแล้ว
   const monitors=DB.config.filter(c=>c.type==='monitor'&&String(c.active).toUpperCase()==='TRUE').map(c=>c.brand);
   const extra=brandsAll().filter(b=>!pnl.includes(b)&&!monitors.includes(b));
+  let monTotal=0;
   [...monitors,...extra].forEach(b=>{
     const a=(mFrom===1&&mTo===12)?sumAds(y,b):monthly(DB.ads,y,b,'amount').slice(mFrom-1,mTo).reduce((s,v)=>s+v,0);
+    monTotal+=a;
     tb.innerHTML+=`<tr><td>${b}</td><td>฿${baht(a)}</td></tr>`;
   });
+  tb.innerHTML+=`<tr style="font-weight:700;border-top:2px solid var(--line);background:#f8fafc"><td>รวม</td><td>฿${baht(monTotal)}</td></tr>`;
 }
 
 function renderCfgEditors(y){
