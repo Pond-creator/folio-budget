@@ -203,7 +203,8 @@ function monthly(arr,year,brand,valKey){
 
 function render(){
   const y=$('#year').value, b=$('#brand').value;
-  const rawFrom=Number($('#monthFrom').value), rawTo=Number($('#monthTo').value);
+  const mfVal=$('#monthFrom').value, mtVal=$('#monthTo').value;
+  const rawFrom=mfVal===''?1:Number(mfVal), rawTo=mtVal===''?12:Number(mtVal);   // ว่าง = ทั้งปี
   const mFrom=Math.min(rawFrom,rawTo), mTo=Math.max(rawFrom,rawTo);   // กันเลือกสลับ จาก>ถึง
   const isFullYear=(mFrom===1&&mTo===12);
   const yPrev=String(Number(y)-1);
@@ -502,11 +503,13 @@ function initFilters(){
   const y=$('#year'); y.innerHTML='';
   years().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;y.appendChild(o);});
   const mf=$('#monthFrom'), mt=$('#monthTo'); mf.innerHTML=''; mt.innerHTML='';
+  mf.appendChild(new Option('ทั้งปี',''));
+  mt.appendChild(new Option('ทั้งปี',''));
   MONTHS_TH.forEach((mn,i)=>{
     mf.appendChild(new Option(mn,i+1));
     mt.appendChild(new Option(mn,i+1));
   });
-  mf.value=1; mt.value=12;   // ค่าเริ่มต้น = ทั้งปี (ม.ค.-ธ.ค.)
+  mf.value=''; mt.value='';   // ค่าเริ่มต้น = ว่างไว้ (=ทั้งปี) ให้ผู้ใช้เลือกเอง
   const b=$('#brand');
   brandsAll().forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;b.appendChild(o);});
 }
@@ -574,7 +577,8 @@ async function load(){
 }
 function exportExcel(){
   const y=$('#year').value;
-  const rawFrom=Number($('#monthFrom').value), rawTo=Number($('#monthTo').value);
+  const mfVal2=$('#monthFrom').value, mtVal2=$('#monthTo').value;
+  const rawFrom=mfVal2===''?1:Number(mfVal2), rawTo=mtVal2===''?12:Number(mtVal2);   // ว่าง = ทั้งปี
   const mFrom=Math.min(rawFrom,rawTo), mTo=Math.max(rawFrom,rawTo);
   const yPrev=String(Number(y)-1);
   const sheets=[];
