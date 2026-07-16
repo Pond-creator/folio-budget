@@ -376,7 +376,7 @@ function renderPnL(y,mFrom=1,mTo=12){
     row('6. GP','gp',{note:'กรอกรายเดือน'})+
     row('7. Influencer','inf')+
     row('8. Collaborate','collab')+
-    row('9. เงินเดือนเจ้าหน้าที่ออนไลน์ทั้งหมดต่อเดือน','comm')+
+    row('9. เงินเดือนเจ้าหน้าที่ออนไลน์','comm')+
     row('คงเหลือจริง','net',{bold:true,top:true});
 }
 function renderTargetGrand(y){
@@ -587,7 +587,7 @@ function exportExcel(){
   const brands=pnlBrandList().filter(b=>{const g=brandAgg(b,y,mFrom,mTo);return g.sales||g.ads;});
   const data=brands.map(b=>pnl(b,y,mFrom,mTo));
   const sum=k=>data.reduce((a,d)=>a+d[k],0);
-  const items=[['ราคาขาย','price'],['ต้นทุน','cost'],['ส่วนลด','disc'],['ค่าเช่า/อื่นๆ','rent'],['ค่าโฆษณา','ads'],['GP','gp'],['Influencer','inf'],['Collaborate','collab'],['เงินเดือนเจ้าหน้าที่ออนไลน์ทั้งหมดต่อเดือน','comm'],['รายได้(หลังลด)','revenue'],['คงเหลือจริง','net']];
+  const items=[['ราคาขาย','price'],['ต้นทุน','cost'],['ส่วนลด','disc'],['ค่าเช่า/อื่นๆ','rent'],['ค่าโฆษณา','ads'],['GP','gp'],['Influencer','inf'],['Collaborate','collab'],['เงินเดือนเจ้าหน้าที่ออนไลน์','comm'],['รายได้(หลังลด)','revenue'],['คงเหลือจริง','net']];
   const pnlAoa=[['รายการ',...brands,'รวม']];
   items.forEach(([label,k])=>pnlAoa.push([label,...data.map(d=>d[k]),sum(k)]));
   sheets.push({name:'P&L',aoa:pnlAoa});
