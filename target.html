@@ -69,6 +69,7 @@
     <div><label>ปี</label><select id="year"></select></div>
     <div style="flex:1"></div>
     <button class="btn ghost" id="reload">🔄 รีเฟรช</button>
+    <button class="btn ghost" id="lockBtn">🔓 แก้เป้าเดิม</button>
     <button class="btn warn" id="autoBtn">⚡ Auto forecast</button>
     <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
     <button class="btn" id="saveBtn">💾 บันทึกเป้า</button>
@@ -120,11 +121,15 @@ function grandActual(year,month){ return BRANDS.reduce((a,b)=>a+actual(year,b,mo
 
 // targetsMap[brand][month] = value (string) — สำหรับปีที่เลือก
 let T={};
+let savedFlag={};   // savedFlag[brand][month]=true ถ้าเป้านี้เคยบันทึกไว้แล้ว (ล็อกกันแก้พลาด)
+let unlocked=false; // ปลดล็อกชั่วคราวเพื่อแก้เป้าเดิม
 function loadTargets(year){
-  T={}; BRANDS.forEach(b=>T[b]={});
+  T={}; savedFlag={}; BRANDS.forEach(b=>{ T[b]={}; savedFlag[b]={}; });
   DB.targets.filter(r=>String(r.year)===String(year)).forEach(r=>{
     if(!T[r.brand]) T[r.brand]={};
+    if(!savedFlag[r.brand]) savedFlag[r.brand]={};
     T[r.brand][Number(r.month)]=r.target;
+    savedFlag[r.brand][Number(r.month)]=true;
   });
 }
 function pcClass(p){ return p>=100?'hi':(p>=80?'mid':'lo'); }
@@ -147,7 +152,9 @@ function render(keepT){
       const tv=T[b][m]!=null?T[b][m]:'';
       const av=actual(y,b,m);
       const p=num(tv)>0?Math.round(av/num(tv)*100):null;
-      return `<td><input class="t" data-b="${b}" data-m="${m}" value="${tv}"></td>`+
+      const isLocked=(savedFlag[b]&&savedFlag[b][m])&&!unlocked;
+      const lockAttr=isLocked?'readonly title="เป้านี้บันทึกไว้แล้ว — กด 🔓 แก้เป้าเดิม ถ้าต้องการแก้" style="background:#f1f5f9;color:#64748b;cursor:not-allowed;border-color:transparent"':'';
+      return `<td><input class="t" data-b="${b}" data-m="${m}" value="${tv}" ${lockAttr}></td>`+
              `<td>${baht(av)}</td>`+
              `<td>${p==null?'-':`<span class="pc ${pcClass(p)}">${p}%</span>`}</td>`;
     }).join('')+'</tr>';
@@ -222,6 +229,7 @@ async function saveTargets(){
     const j=await res.json(); if(!AUTH.check(j)) return;
     if(!j.ok){ throw new Error(j.error||'บันทึกไม่สำเร็จ'); }
     DB.targets=all;
+    loadTargets(String(y)); render(true);   // รีเฟรชสถานะล็อก — เป้าที่เพิ่งบันทึกจะถูกล็อกทันที
     btn.innerHTML='✅ บันทึกแล้ว!'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2000);
     showMsg(`บันทึกเป้าปี ${y} สำเร็จ (${mine.length} รายการ)`,'ok');
   }catch(e){ btn.innerHTML='❌ ไม่สำเร็จ'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},3000); showMsg('บันทึกไม่สำเร็จ: '+e,'err'); }
@@ -276,6 +284,14 @@ $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();})
 $('#xlsxBtn').addEventListener('click',exportExcel);
 $('#year').addEventListener('change',()=>render());
 $('#reload').addEventListener('click',boot);
+$('#lockBtn').addEventListener('click',()=>{
+  unlocked=!unlocked;
+  $('#lockBtn').innerHTML=unlocked?'🔒 ล็อกเป้าเดิม':'🔓 แก้เป้าเดิม';
+  $('#lockBtn').style.background=unlocked?'var(--warn)':'';
+  $('#lockBtn').style.color=unlocked?'#fff':'';
+  render(true);
+  showMsg(unlocked?'ปลดล็อกเป้าเดิมแล้ว — แก้ได้ ระวังเผลอเปลี่ยนค่าที่ตั้งใจไว้':'ล็อกเป้าเดิมแล้ว','info');
+});
 $('#autoBtn').addEventListener('click',autoForecast);
 $('#saveBtn').addEventListener('click',saveTargets);
 boot();
