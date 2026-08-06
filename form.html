@@ -365,18 +365,17 @@ async function save(){
     const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'save',payload,token:AUTH.token()})});
     const j=await res.json();
     if(!AUTH.check(j)) return;
-    if(j.ok){ showMsg(`✅ บันทึก ${MONTHS_TH[payload.month-1]} ${payload.year} สำเร็จ`,'ok'); await bootstrap(false); }
+    if(j.ok){ DBCACHE.clear(); showMsg(`✅ บันทึก ${MONTHS_TH[payload.month-1]} ${payload.year} สำเร็จ`,'ok'); await bootstrap(false,true); }   // ล้างแคช + ดึงสดหลังบันทึก
     else showMsg('บันทึกไม่สำเร็จ: '+j.error,'err');
   }catch(e){ showMsg('เชื่อมต่อ API ไม่ได้: '+e,'err'); }
   btn.disabled=false; btn.innerHTML=orig;
 }
 
-async function bootstrap(rebuild=true){
+async function bootstrap(rebuild=true, force=false){
   if(!AUTH.guardPage('form.html')) return;
   AUTH.applyNav();
   try{
-    const res=await fetch(bootstrapUrl());
-    DB=await res.json();
+    DB=await loadDB(force);
     if(!AUTH.check(DB)) return;
     if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
       if(!AUTH.canEdit()){ showMsg('สิทธิ์ viewer ดูได้อย่างเดียว ไม่สามารถกรอกข้อมูล','err'); $('#saveBtn').disabled=true; } }

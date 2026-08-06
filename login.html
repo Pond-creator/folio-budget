@@ -52,7 +52,7 @@ $('#loginForm').addEventListener('submit', async e=>{
   try{
     const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'login',username:$('#username').value.trim(),password:$('#password').value})});
     const j=await res.json();
-    if(j.ok){ AUTH.set(j); location.href='index.html'; }
+    if(j.ok){ DBCACHE.clear(); AUTH.set(j); location.href='index.html'; }   // login ใหม่ = เริ่มจากข้อมูลสดเสมอ
     else { err.textContent='❌ '+(j.error||'เข้าสู่ระบบไม่สำเร็จ'); err.className='err show'; btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
   }catch(ex){ err.textContent='เชื่อมต่อไม่ได้: '+ex; err.className='err show'; btn.disabled=false; btn.innerHTML='เข้าสู่ระบบ'; }
 });

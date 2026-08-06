@@ -137,6 +137,7 @@ async function save(){
     const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'adsdoc',rows,token:AUTH.token()})});
     const j=await res.json(); if(!AUTH.check(j)) return;
     if(!j.ok){ throw new Error(j.error||'บันทึกไม่สำเร็จ'); }
+    DBCACHE.clear();   // บันทึกแล้ว -> ล้างแคช
     DB.adsdoc=rows;
     btn.innerHTML='✅ บันทึกแล้ว!'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2000);
     showMsg(`บันทึกสำเร็จ (${rows.length} รายการ)`,'ok');
@@ -149,13 +150,12 @@ function addYear(){
   showMsg(`เพิ่มปี ${next} แล้ว — กรอกแล้วกดบันทึก`,'info');
 }
 
-async function boot(){
+async function boot(force){
   if(!AUTH.guardPage('adsdoc.html')) return;
   AUTH.applyNav();
   showMsg('กำลังโหลด...','info');
   try{
-    const res=await fetch(bootstrapUrl());
-    DB=await res.json();
+    DB=await loadDB(force);
     if(!AUTH.check(DB)) return;
     if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
       if(!AUTH.canEdit()){ $('#saveBtn').disabled=true; $('#addYear').disabled=true; } }
@@ -180,7 +180,7 @@ function exportExcel(){
 }
 $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
 $('#xlsxBtn').addEventListener('click',exportExcel);
-$('#reload').addEventListener('click',boot);
+$('#reload').addEventListener('click',()=>boot(true));   // ปุ่มรีเฟรช = ดึงข้อมูลสดเสมอ
 $('#addYear').addEventListener('click',addYear);
 $('#saveBtn').addEventListener('click',save);
 boot();

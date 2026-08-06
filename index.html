@@ -491,6 +491,7 @@ async function saveCfg(){
   try{
     await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'config',rows:DB.config,token:AUTH.token()})});
     await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'channels',rows:DB.channels,token:AUTH.token()})});
+    DBCACHE.clear();   // บันทึกแล้ว -> ล้างแคช กันข้อมูลเก่าค้าง
     btn.innerHTML='✅ บันทึกแล้ว!'; btn.style.background='var(--ok)';
     render(); setTimeout(()=>{ btn.innerHTML=orig; btn.style.background=''; btn.disabled=false; },2000);
   }catch(e){
@@ -534,6 +535,7 @@ async function postUser(u){
   const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'saveUser',user:u,token:AUTH.token()})});
   const j=await res.json(); if(!AUTH.check(j)) return false;
   if(!j.ok){ showMsg('ไม่สำเร็จ: '+j.error,'err'); return false; }
+  DBCACHE.clear();   // บันทึกแล้ว -> ล้างแคช
   showMsg('บันทึกผู้ใช้ '+u.username+' แล้ว','ok'); await refreshUsers(); return true;
 }
 async function saveUserRow(tr,btn){
@@ -553,19 +555,18 @@ async function delUser(username){
   if(!confirm('ลบผู้ใช้ '+username+' ?')) return;
   const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'deleteUser',username,token:AUTH.token()})});
   const j=await res.json(); if(!AUTH.check(j)) return;
-  if(j.ok){ showMsg('ลบ '+username+' แล้ว','ok'); await refreshUsers(); } else showMsg('ไม่สำเร็จ: '+j.error,'err');
+  if(j.ok){ DBCACHE.clear(); showMsg('ลบ '+username+' แล้ว','ok'); await refreshUsers(); } else showMsg('ไม่สำเร็จ: '+j.error,'err');
 }
 async function refreshUsers(){
-  const res=await fetch(bootstrapUrl()); const d=await res.json(); if(!AUTH.check(d)) return;
+  const d=await loadDB(true); if(!AUTH.check(d)) return;   // เพิ่งแก้ผู้ใช้ -> ดึงสดเสมอ
   DB.users=d.users||[]; renderUsers();
 }
 
-async function load(){
+async function load(force){
   if(!AUTH.guardPage('index.html')) return;
   AUTH.applyNav();
   try{
-    const res=await fetch(bootstrapUrl());
-    DB=await res.json();
+    DB=await loadDB(force);
     if(!AUTH.check(DB)) return;
     // แสดงชื่อ + ปรับ UI ตามสิทธิ์
     $('#userTag').textContent=(DB.me?DB.me.name:'')+' ('+(DB.me?DB.me.role:'')+')';
@@ -651,7 +652,7 @@ $('#year').addEventListener('change',render);
 $('#monthFrom').addEventListener('change',render);
 $('#monthTo').addEventListener('change',render);
 $('#brand').addEventListener('change',render);
-$('#reload').addEventListener('click',load);
+$('#reload').addEventListener('click',()=>load(true));   // ปุ่มรีเฟรช = ดึงข้อมูลสดเสมอ
 $('#saveCfg').addEventListener('click',saveCfg);
 $('#addBrand').addEventListener('click',addBrandRow);
 $('#addCh').addEventListener('click',addChRow);

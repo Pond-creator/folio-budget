@@ -168,19 +168,19 @@ async function save(){
     const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'config',tab:'notes',rows:all,token:AUTH.token()})});
     const j=await res.json(); if(!AUTH.check(j)) return;
     if(!j.ok){ throw new Error(j.error||'บันทึกไม่สำเร็จ'); }
+    DBCACHE.clear();   // บันทึกแล้ว -> ล้างแคช
     DB.notes=all;
     btn.innerHTML='✅ บันทึกแล้ว!'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},2000);
     showMsg(`บันทึก ${MONTHS[m-1]} ${y} สำเร็จ (${mine.length} แถว)`,'ok');
   }catch(e){ btn.innerHTML='❌ ไม่สำเร็จ'; setTimeout(()=>{btn.innerHTML=orig;btn.disabled=false;},3000); showMsg('บันทึกไม่สำเร็จ: '+e,'err'); }
 }
 
-async function boot(){
+async function boot(force){
   if(!AUTH.guardPage('scratch.html')) return;
   AUTH.applyNav();
   showMsg('กำลังโหลด...','info');
   try{
-    const res=await fetch(bootstrapUrl());
-    DB=await res.json();
+    DB=await loadDB(force);
     if(!AUTH.check(DB)) return;
     if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
       if(!AUTH.canEdit()){ $('#saveBtn').disabled=true; $('#addRow').disabled=true; } }

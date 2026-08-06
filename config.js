@@ -25,7 +25,8 @@ window.AUTH = {
   name:  function(){ return localStorage.getItem('folio_name'); },
   user:  function(){ return localStorage.getItem('folio_user'); },
   set: function(d){ localStorage.setItem('folio_token',d.token); localStorage.setItem('folio_role',d.role||''); localStorage.setItem('folio_name',d.name||''); localStorage.setItem('folio_user',d.username||''); },
-  clear: function(){ ['folio_token','folio_role','folio_name','folio_user'].forEach(function(k){ localStorage.removeItem(k); }); },
+  clear: function(){ ['folio_token','folio_role','folio_name','folio_user'].forEach(function(k){ localStorage.removeItem(k); });
+    if(window.DBCACHE) window.DBCACHE.clear(); },
   // เรียกตอนเปิดหน้า — ถ้าไม่มี token เด้งไป login
   guard: function(){ if(!localStorage.getItem('folio_token')){ location.href='login.html'; return false; } return true; },
   logout: function(){ var t=localStorage.getItem('folio_token'); window.AUTH.clear();
@@ -38,6 +39,41 @@ window.AUTH = {
 };
 // URL bootstrap แนบ token
 window.bootstrapUrl = function(){ return API_URL+'?action=bootstrap&token='+encodeURIComponent(window.AUTH.token()||''); };
+
+// ---------- แคชข้อมูลชั่วคราวในเบราว์เซอร์ (ทำให้สลับหน้าเร็วขึ้น) ----------
+// เก็บใน sessionStorage = หายเองเมื่อปิดแท็บ • ล้างทันทีทุกครั้งที่มีการบันทึก
+// • มีวันหมดอายุ 5 นาทีเป็นตาข่ายกันข้อมูลเก่าค้าง • ผูกกับชื่อผู้ใช้ (สลับ user ไม่ปนกัน)
+window.DBCACHE = {
+  KEY: 'folio_db_cache',
+  TTL_MS: 5 * 60 * 1000,
+  get: function(){
+    try{
+      var raw = sessionStorage.getItem(this.KEY);
+      if(!raw) return null;
+      var o = JSON.parse(raw);
+      if(!o || !o.t || !o.d) return null;
+      if(Date.now() - o.t > this.TTL_MS) return null;              // หมดอายุ
+      if(o.u !== (window.AUTH.user() || '')) return null;          // คนละผู้ใช้
+      return o.d;
+    }catch(e){ return null; }
+  },
+  set: function(d){
+    try{ sessionStorage.setItem(this.KEY, JSON.stringify({ t: Date.now(), u: window.AUTH.user() || '', d: d })); }catch(e){}
+  },
+  clear: function(){ try{ sessionStorage.removeItem(this.KEY); }catch(e){} }
+};
+
+// โหลดข้อมูลทั้งหมด — ปกติใช้แคชถ้ายังสด, force=true บังคับดึงใหม่จากเซิร์ฟเวอร์ (ปุ่มรีเฟรช/หลังบันทึก)
+window.loadDB = async function(force){
+  if(!force){
+    var cached = window.DBCACHE.get();
+    if(cached) return cached;
+  }
+  var res = await fetch(window.bootstrapUrl());
+  var d = await res.json();
+  if(d && d.ok) window.DBCACHE.set(d); else window.DBCACHE.clear();
+  return d;
+};
 
 // สิทธิ์เข้าถึงแต่ละหน้า ตาม role
 window.PAGE_ACCESS = {
