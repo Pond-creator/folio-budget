@@ -201,11 +201,24 @@ function monthly(arr,year,brand,valKey){
   return out;
 }
 
+// อ่านช่วงเดือนจากตัวกรอง:
+//   ไม่เลือกทั้งคู่        -> ทั้งปี (1-12)
+//   เลือกแค่ "เดือน"       -> เฉพาะเดือนนั้น
+//   เลือกแค่ "ถึง"         -> ม.ค. ถึงเดือนนั้น
+//   เลือกทั้งคู่           -> ช่วงตามที่เลือก (สลับให้ถ้ากรอกกลับด้าน)
+function monthRange(){
+  const f=$('#monthFrom').value, t=$('#monthTo').value;
+  let a,b;
+  if(f===''&&t===''){ a=1; b=12; }
+  else if(f!==''&&t===''){ a=b=Number(f); }
+  else if(f===''&&t!==''){ a=1; b=Number(t); }
+  else { a=Number(f); b=Number(t); }
+  return { mFrom:Math.min(a,b), mTo:Math.max(a,b) };
+}
+
 function render(){
   const y=$('#year').value, b=$('#brand').value;
-  const mfVal=$('#monthFrom').value, mtVal=$('#monthTo').value;
-  const rawFrom=mfVal===''?1:Number(mfVal), rawTo=mtVal===''?12:Number(mtVal);   // ว่าง = ทั้งปี
-  const mFrom=Math.min(rawFrom,rawTo), mTo=Math.max(rawFrom,rawTo);   // กันเลือกสลับ จาก>ถึง
+  const {mFrom,mTo}=monthRange();
   const isFullYear=(mFrom===1&&mTo===12);
   const yPrev=String(Number(y)-1);
   // ป้ายเตือน: ปีที่ยังไม่มีข้อมูลส่วนลด (data-driven — migrate เพิ่มแล้วป้ายหายเอง)
@@ -246,8 +259,7 @@ function render(){
 
   $('#kpis').innerHTML=[
     ['ยอดขายรวม','฿'+baht(sales),`ปีก่อน ฿${baht(salesPrevSame)} (${periodLabel})${chgTxt(salesChg)}`],
-    ['ค่าโฆษณารวม','฿'+baht(ads),`ปีก่อน ฿${baht(adsPrevSame)} (${periodLabel})${chgTxt(adsChg,true)}`],
-    ['ค่าแอด % ต่อยอด',sales>0?pct(adsPct):'—',sales>0?`฿${baht(ads)}`:''],
+    ['ค่าแอด % ต่อยอด',sales>0?pct(adsPct):'—',sales>0?`฿${baht(ads)} • ปีก่อน ฿${baht(adsPrevSame)}${chgTxt(adsChg,true)}`:''],
     ['GP %',sales>0?pct(gpTotal/sales):'—',sales>0?`฿${baht(gpTotal)}`:''],
     ['ส่วนลดเฉลี่ย %',fp>0?pct(disPct):'—',fp>0?`฿${baht(ds)}`:'(ปีเก่ายังไม่มีข้อมูลส่วนลด)'],
   ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');
@@ -578,9 +590,7 @@ async function load(force){
 }
 function exportExcel(){
   const y=$('#year').value;
-  const mfVal2=$('#monthFrom').value, mtVal2=$('#monthTo').value;
-  const rawFrom=mfVal2===''?1:Number(mfVal2), rawTo=mtVal2===''?12:Number(mtVal2);   // ว่าง = ทั้งปี
-  const mFrom=Math.min(rawFrom,rawTo), mTo=Math.max(rawFrom,rawTo);
+  const {mFrom,mTo}=monthRange();   // ใช้ตรรกะเดียวกับหน้าจอ
   const yPrev=String(Number(y)-1);
   const sheets=[];
 
