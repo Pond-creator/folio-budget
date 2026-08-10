@@ -371,13 +371,15 @@ function renderPnL(y,mFrom=1,mTo=12){
   const data=brands.map(b=>pnl(b,y,mFrom,mTo));
   const sum=k=>data.reduce((a,d)=>a+d[k],0);
   const head=$('#pnlTbl thead'), body=$('#pnlTbl tbody');
-  head.innerHTML='<tr><th>รายการ</th>'+brands.map(b=>`<th>${b}</th>`).join('')+'<th>รวม</th></tr>';
+  head.innerHTML='<tr><th>รายการ</th>'+brands.map(b=>`<th>${b}</th>`).join('')+'<th>รวม</th><th>%</th></tr>';
   const cell=v=>`<td>฿${baht(v)}</td>`;
+  const basePrice=sum('price');   // ฐานคิด % = ราคาขาย (บรรทัด 1) -> ทุกบรรทัดรวมกัน = 100%
+  const pctCell=v=>`<td style="color:var(--muted);font-size:12px">${basePrice>0?(v/basePrice*100).toFixed(1)+'%':'—'}</td>`;
   const row=(label,k,opt={})=>{
     const style=(opt.bold||opt.hl?'font-weight:700;':'')+(opt.top?'border-top:2px solid var(--line);':'')+(opt.hl?'background:#d1fae5;color:#065f46;':'');
     const note=opt.note?` <span style="color:var(--muted);font-size:11px">${opt.note}</span>`:'';
     return `<tr style="${style}"><td>${label}${note}</td>`+
-      data.map(d=>cell(d[k])).join('')+`<td>฿${baht(sum(k))}</td></tr>`;
+      data.map(d=>cell(d[k])).join('')+`<td>฿${baht(sum(k))}</td>${pctCell(sum(k))}</tr>`;
   };
   body.innerHTML=
     row('1. ราคาขาย','price')+
@@ -599,8 +601,9 @@ function exportExcel(){
   const data=brands.map(b=>pnl(b,y,mFrom,mTo));
   const sum=k=>data.reduce((a,d)=>a+d[k],0);
   const items=[['ราคาขาย','price'],['ต้นทุน','cost'],['ส่วนลด','disc'],['ค่าเช่า/อื่นๆ','rent'],['ค่าโฆษณา','ads'],['GP','gp'],['Influencer','inf'],['Collaborate','collab'],['เงินเดือนเจ้าหน้าที่ออนไลน์','comm'],['รายได้(หลังลด)','revenue'],['คงเหลือจริง','net']];
-  const pnlAoa=[['รายการ',...brands,'รวม']];
-  items.forEach(([label,k])=>pnlAoa.push([label,...data.map(d=>d[k]),sum(k)]));
+  const basePrice=sum('price');   // ฐานคิด % = ราคาขาย (เหมือนบนหน้าจอ)
+  const pnlAoa=[['รายการ',...brands,'รวม','%']];
+  items.forEach(([label,k])=>pnlAoa.push([label,...data.map(d=>d[k]),sum(k), basePrice>0?+(sum(k)/basePrice*100).toFixed(1)+'%':'—']));
   sheets.push({name:'P&L',aoa:pnlAoa});
 
   // 2. ยอดขายรายเดือน (ทุกแบรนด์ P&L, ทั้งปี)
