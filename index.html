@@ -59,7 +59,7 @@
   .switch input:checked + .slider { background:var(--ok); }
   .switch input:checked + .slider:before { transform:translateX(20px); }
   .msg { padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:14px; display:none; }
-  .msg.ok{background:#d1fae5;color:#065f46;display:block;} .msg.err{background:#fee2e2;color:#991b1b;display:block;}
+  .msg.ok{background:#d1fae5;color:#065f46;display:block;} .msg.err{background:#fee2e2;color:#991b1b;display:block;} .msg.info{background:#dbeafe;color:#1e40af;display:block;}
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; } @media(max-width:800px){.grid2{grid-template-columns:1fr;}}
   details summary { cursor:pointer; font-weight:600; }
   input.cfg { width:80px; text-align:right; padding:5px; border:1px solid var(--line); border-radius:6px; }
@@ -580,8 +580,9 @@ async function load(force){
   if(!AUTH.guardPage('index.html')) return;
   AUTH.applyNav();
   try{
-    DB=await loadDB(force);
+    DB=await loadDB(force,(n,max)=>showMsg(`เซิร์ฟเวอร์ตอบช้า กำลังลองใหม่... (${n}/${max})`,'info'));
     if(!AUTH.check(DB)) return;
+    $('#msg').className='msg';   // โหลดสำเร็จ -> ซ่อนข้อความ
     // แสดงชื่อ + ปรับ UI ตามสิทธิ์
     $('#userTag').textContent=(DB.me?DB.me.name:'')+' ('+(DB.me?DB.me.role:'')+')';
     if(!AUTH.isAdmin()) $('#gearBtn').style.display='none';   // ตั้งค่า = admin เท่านั้น

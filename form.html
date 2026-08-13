@@ -375,7 +375,7 @@ async function bootstrap(rebuild=true, force=false){
   if(!AUTH.guardPage('form.html')) return;
   AUTH.applyNav();
   try{
-    DB=await loadDB(force);
+    DB=await loadDB(force,(n,max)=>showMsg(`เซิร์ฟเวอร์ตอบช้า กำลังลองใหม่... (${n}/${max})`,'info'));
     if(!AUTH.check(DB)) return;
     if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
       if(!AUTH.canEdit()){ showMsg('สิทธิ์ viewer ดูได้อย่างเดียว ไม่สามารถกรอกข้อมูล','err'); $('#saveBtn').disabled=true; } }

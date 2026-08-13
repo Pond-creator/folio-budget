@@ -64,15 +64,33 @@ window.DBCACHE = {
 };
 
 // โหลดข้อมูลทั้งหมด — ปกติใช้แคชถ้ายังสด, force=true บังคับดึงใหม่จากเซิร์ฟเวอร์ (ปุ่มรีเฟรช/หลังบันทึก)
-window.loadDB = async function(force){
+// มี auto-retry: บางครั้ง Google Apps Script ตอบ 404/หน้า HTML ชั่วคราว -> ลองใหม่อัตโนมัติ
+// *** ใช้กับการ "อ่าน" เท่านั้น ปลอดภัย 100% เพราะอ่านซ้ำไม่ทำให้ข้อมูลเปลี่ยน (ไม่ได้ใส่ในส่วนบันทึก) ***
+window.LOAD_RETRY = 3;          // ลองทั้งหมดกี่ครั้ง
+window.LOAD_RETRY_WAIT = 2500;  // เว้นกี่ ms ก่อนลองใหม่ (เพิ่มขึ้นเรื่อยๆ)
+
+window.loadDB = async function(force, onRetry){
   if(!force){
     var cached = window.DBCACHE.get();
     if(cached) return cached;
   }
-  var res = await fetch(window.bootstrapUrl());
-  var d = await res.json();
-  if(d && d.ok) window.DBCACHE.set(d); else window.DBCACHE.clear();
-  return d;
+  var lastErr = null;
+  for(var i = 1; i <= window.LOAD_RETRY; i++){
+    try{
+      var res = await fetch(window.bootstrapUrl());
+      var txt = await res.text();
+      var d = JSON.parse(txt);          // ถ้า GAS ตอบ HTML (404) จะ throw ตรงนี้ -> ไปลองใหม่
+      if(d && d.ok) window.DBCACHE.set(d); else window.DBCACHE.clear();
+      return d;                          // สำเร็จ (รวมถึงกรณี needLogin ที่เป็น JSON ถูกต้อง)
+    }catch(e){
+      lastErr = e;
+      if(i < window.LOAD_RETRY){
+        if(typeof onRetry === 'function') onRetry(i, window.LOAD_RETRY);
+        await new Promise(function(r){ setTimeout(r, window.LOAD_RETRY_WAIT * i); });
+      }
+    }
+  }
+  throw lastErr;                         // ครบทุกครั้งแล้วยังไม่ได้ -> โยน error เหมือนเดิม (หน้าเว็บแสดงข้อความเดิม)
 };
 
 // สิทธิ์เข้าถึงแต่ละหน้า ตาม role

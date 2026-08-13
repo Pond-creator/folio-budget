@@ -180,7 +180,7 @@ async function boot(force){
   AUTH.applyNav();
   showMsg('กำลังโหลด...','info');
   try{
-    DB=await loadDB(force);
+    DB=await loadDB(force,(n,max)=>showMsg(`เซิร์ฟเวอร์ตอบช้า กำลังลองใหม่... (${n}/${max})`,'info'));
     if(!AUTH.check(DB)) return;
     if(DB.me){ $('#userTag').textContent=DB.me.name+' ('+DB.me.role+')';
       if(!AUTH.canEdit()){ $('#saveBtn').disabled=true; $('#addRow').disabled=true; } }
