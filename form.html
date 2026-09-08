@@ -193,7 +193,7 @@ function updateSummary(){
   $('#sideTbl tbody').querySelectorAll('[data-f=amount]').forEach(i=>side+=Number(i.value)||0);
   const fmt=v=>'฿'+v.toLocaleString(undefined,{maximumFractionDigits:2});
   const adsPct=sales>0?(ads/sales*100).toFixed(1)+'%':'—';
-  const cards=[['ยอดขายรวม',fmt(sales)],['ส่วนลดรวม',fmt(disc)],['ค่าโฆษณารวม',fmt(ads)],
+  const cards=[['ยอดขาย (หลังหักส่วนลด)',fmt(sales)],['ส่วนลดรวม',fmt(disc)],['ค่าโฆษณารวม',fmt(ads)],
     ['ค่าแอด % ต่อยอด',adsPct],['โปรเจคเสริม',fmt(side)]];
   $('#summary').innerHTML=cards.map(c=>`<div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:12px">
     <div style="font-size:12px;color:var(--muted)">${c[0]}</div><div style="font-size:20px;font-weight:700;margin-top:4px">${c[1]}</div></div>`).join('');
