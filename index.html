@@ -30,6 +30,17 @@
   .kpi .l { font-size:12px; color:var(--muted); }
   .kpi .v { font-size:24px; font-weight:700; margin-top:6px; }
   .kpi .s { font-size:12px; color:var(--muted); margin-top:4px; }
+  /* คำอธิบายแบบเมาส์ชี้ (hover) — ไม่ต้องคลิก */
+  .help { position:relative; border-bottom:1px dashed var(--brand); color:var(--brand); cursor:help; }
+  .help .box { visibility:hidden; opacity:0; transition:opacity .15s; position:absolute; z-index:50;
+    top:calc(100% + 8px); left:0; width:min(420px,88vw); background:var(--card); color:var(--ink);
+    border:1px solid var(--line); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.14);
+    padding:12px 14px; font-size:12px; font-weight:400; line-height:1.7; text-align:left; white-space:normal; }
+  .help:hover .box, .help:focus .box, .help:focus-within .box { visibility:visible; opacity:1; }
+  .help .box b { color:var(--ink); }
+  .help .box .t { font-size:13px; font-weight:700; margin-bottom:6px; display:block; }
+  .card.showhelp { overflow:visible; }            /* กันกล่องอธิบายโดนตัด */
+  .card.showhelp .tblscroll { overflow-x:auto; }  /* ย้ายการเลื่อนแนวนอนมาไว้ที่ตาราง */
   .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px; overflow-x:auto; }
   .card h2 { font-size:15px; margin:0 0 12px; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
@@ -109,9 +120,15 @@
 
   <div class="card"><h2>เทียบยอดขายรายปี</h2><canvas id="chYear" height="90"></canvas></div>
 
-  <div class="card">
-    <h2>สรุปยอดขาย-กำไร แยกแบรนด์ (P&L · ปีที่เลือก)</h2>
-    <table id="pnlTbl"><thead></thead><tbody></tbody></table>
+  <div class="card showhelp">
+    <h2>สรุปยอดขาย-กำไร แยกแบรนด์ (<span class="help" tabindex="0">P&amp;L<span class="box">
+      <span class="t">P&amp;L คืออะไร?</span>
+      ย่อจาก <b>Profit &amp; Loss</b> = <b>งบกำไรขาดทุน</b> — ตารางที่ไล่ดูว่าเงินจากการขาย ถูกหักไปกับอะไรบ้าง จนเหลือกำไรจริงเท่าไหร่<br><br>
+      <b>วิธีอ่าน:</b> เริ่มจาก <b>ราคาขาย</b> (บรรทัด 1) แล้วหักลงมาทีละบรรทัด — ต้นทุน · ส่วนลด · ค่าเช่า · ค่าโฆษณา · GP · Influencer · Collaborate · เงินเดือน — บรรทัดสุดท้ายคือ <b>คงเหลือจริง</b><br><br>
+      <b>คอลัมน์ %</b> เทียบกับ <b>ราคาขาย = 100%</b> ทุกบรรทัด ทุกรายการที่หัก + คงเหลือจริง จึงรวมกันได้ 100% พอดี<br><br>
+      <span style="color:var(--muted)">💡 การ์ด GP% ข้างบนใช้ฐาน “ยอดขายหลังหักส่วนลด” จึงได้ % ต่างจากในตาราง — ถูกต้องทั้งคู่ แค่คนละฐาน</span>
+    </span></span> · ปีที่เลือก)</h2>
+    <div class="tblscroll"><table id="pnlTbl"><thead></thead><tbody></tbody></table></div>
     <p style="font-size:12px;color:var(--muted);margin-top:8px">ต้นทุน% ตั้งในตั้งค่า • GP กรอกเป็น% รายเดือนในฟอร์ม (ระบบแปลงเป็นบาทอัตโนมัติ) • ค่าเช่า/Influencer/Collaborate กรอกเป็นบาทในฟอร์มรายเดือน</p>
   </div>
 
