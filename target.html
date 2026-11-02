@@ -45,6 +45,25 @@
   .spinner { display:inline-block; width:14px; height:14px; border:2px solid #fff; border-top-color:transparent; border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:6px; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .hint { font-size:12px; color:var(--muted); margin-top:8px; }
+  /* ---- P&L คาดการณ์ ---- */
+  .tblscroll { overflow-x:auto; }
+  .fcbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:-4px 0 12px; }
+  .fcbar label { font-size:12px; color:var(--muted); }
+  .fctag { font-size:12px; font-weight:700; color:var(--warn); background:#fef3c7; padding:4px 10px; border-radius:999px; }
+  .fcwarn { background:#fef3c7; color:#92400e; border:1px solid #fde68a; border-radius:8px; padding:9px 12px; font-size:13px; margin-bottom:10px; }
+  input.fcr { width:64px; text-align:right; padding:4px 6px; border:1px solid #fcd34d; background:#fffbeb; border-radius:6px; font-size:12px; font-weight:600; color:#92400e; }
+  input.fcr:focus { outline:2px solid var(--warn); outline-offset:-1px; }
+  #fcTbl tr.fccheck td { color:var(--muted); font-size:12px; border-top:1px dashed var(--line); }
+  /* แยกสีคอลัมน์รายแบรนด์ กันอ่านสลับแบรนด์ */
+  #fcTbl .fcb0 { background:#eff6ff; } #fcTbl .fcb1 { background:#f0fdf4; }
+  #fcTbl .fcb2 { background:#fff7ed; } #fcTbl .fcb3 { background:#faf5ff; }
+  #fcTbl thead .fcb0, #fcTbl tr.total .fcb0 { background:#dbeafe; }
+  #fcTbl thead .fcb1, #fcTbl tr.total .fcb1 { background:#dcfce7; }
+  #fcTbl thead .fcb2, #fcTbl tr.total .fcb2 { background:#ffedd5; }
+  #fcTbl thead .fcb3, #fcTbl tr.total .fcb3 { background:#f3e8ff; }
+  #fcTbl thead .grp.fcb0 { color:#1e40af; } #fcTbl thead .grp.fcb1 { color:#166534; }
+  #fcTbl thead .grp.fcb2 { color:#9a3412; } #fcTbl thead .grp.fcb3 { color:#6b21a8; }
+  #fcTbl .fcsep { border-left:2px solid #cbd5e1; }
 </style>
 </head>
 <body>
@@ -90,6 +109,24 @@
   <div class="card">
     <h2>📦 เป้า vs จริง รายแบรนด์ <span style="font-weight:400;color:var(--muted);font-size:12px">(ช่องเป้าแก้ได้ • ยอดจริงดึงอัตโนมัติ)</span></h2>
     <table id="brTbl"><thead></thead><tbody></tbody></table>
+  </div>
+
+  <div class="card" id="fcCard">
+    <h2>🔮 P&amp;L คาดการณ์ ปี <span id="fcYear"></span>
+      <span style="font-weight:400;color:var(--muted);font-size:12px">(คำนวณสดจากช่องเป้าด้านบน • ไม่ได้บันทึกลงชีต)</span></h2>
+    <div class="fcbar">
+      <label>ใช้ % จากปี</label>
+      <select id="fcBase"></select>
+      <button class="btn ghost" id="fcReset" title="ล้าง % ที่พิมพ์แก้เอง กลับไปใช้ % ของปีฐาน">↺ รีเซ็ต %</button>
+      <span id="fcEditTag" class="fctag" style="display:none">✏️ มี % ที่แก้เอง</span>
+    </div>
+    <div id="fcWarn" class="fcwarn" style="display:none"></div>
+    <div class="tblscroll"><table id="fcTbl"><thead></thead><tbody></tbody></table></div>
+    <div class="hint">
+      ช่อง <b>%</b> สีเหลืองพิมพ์แก้ได้ (ลองสมมติฐาน เช่น ลดค่าแอดเหลือ 6%) • แก้เป้าด้านบนแล้วตัวเลขที่นี่ขยับทันที<br>
+      <b>ฐาน % = ราคาขาย 100%</b> → ทุกบรรทัดที่หัก + คงเหลือคาดการณ์ รวมกันได้ 100% พอดี (ดูแถวตรวจยอดล่างสุด)<br>
+      <b>ราคาขาย</b> = เป้าที่กรอก (ยอดหลังหักส่วนลด) บวกส่วนลดกลับตาม % ที่ตั้งไว้ — เพื่อให้อ่านเหมือนตาราง P&amp;L และไฟล์ Excel
+    </div>
   </div>
 </div>
 
@@ -170,10 +207,11 @@ function render(keepT){
   bb.innerHTML=rows;
 
   bb.querySelectorAll('input.t').forEach(i=>i.addEventListener('input',()=>{
-    T[i.dataset.b][Number(i.dataset.m)]=i.value; renderGrand(y,yPrev);
+    T[i.dataset.b][Number(i.dataset.m)]=i.value; renderGrand(y,yPrev); fcRefreshNumbers();
   }));
 
   renderGrand(y,yPrev);
+  renderForecast();
 }
 
 function renderGrand(y,yPrev){
@@ -202,6 +240,196 @@ function renderGrand(y,yPrev){
         `<td class="prev">${baht(sPx)}</td><td>${baht(sTx)}</td><td>${baht(sAx)}</td>${pcell(sAx,sTx)}`+
         `<td class="prev">${baht(sP)}</td><td>${baht(sT)}</td><td>${baht(sA)}</td>${pcell(sA,sT)}</tr>`;
   gb.innerHTML=rows;
+}
+
+// ================= 🔮 P&L คาดการณ์ (อ่านอย่างเดียว ไม่เขียนกลับชีต) =================
+// เอาเป้าที่กรอกบนหน้าจอ × % ของปีฐาน → ได้ P&L ทั้งใบของปีที่ตั้งเป้า
+// ฐาน % = ราคาขาย (100%) เหมือนตาราง P&L หน้า Dashboard → ทุกบรรทัด + คงเหลือ = 100% พอดี
+const FC_ROWS=[
+  {k:'cost',  label:'2. ต้นทุน'},
+  {k:'disc',  label:'3. ส่วนลด'},
+  {k:'rent',  label:'4. ค่าเช่า/ค่าใช้จ่ายอื่นๆ'},
+  {k:'ads',   label:'5. ค่าโฆษณา'},
+  {k:'gp',    label:'6. GP'},
+  {k:'inf',   label:'7. Influencer'},
+  {k:'collab',label:'8. Collaborate'},
+  {k:'comm',  label:'9. เงินเดือนเจ้าหน้าที่ออนไลน์'}
+];
+let FCR={};          // FCR[brand][key] = % (เลขเต็ม เช่น 33.65)
+let fcEdited={};     // fcEdited[brand][key] = true ถ้าผู้ใช้พิมพ์แก้เอง
+let fcBaseYear=null; // ปีที่เอา % มาใช้
+
+function fcAgg(brand,y){
+  const sr=(DB.sales||[]).filter(r=>String(r.year)===String(y)&&r.brand===brand);
+  const s=f=>sr.reduce((a,r)=>a+num(f(r)),0);
+  const g={ sales:s(r=>r.sales), disc:s(r=>r.discount), rent:s(r=>r.rent),
+            inf:s(r=>r.influencer), collab:s(r=>r.collab), comm:s(r=>r.commission), gp:s(r=>r.gp) };
+  g.ads=(DB.ads||[]).filter(r=>String(r.year)===String(y)&&r.brand===brand).reduce((a,r)=>a+num(r.amount),0);
+  return g;
+}
+// ต้นทุน% เอาจากหน้า ⚙️ตั้งค่า (Config) ของปีที่ตั้งเป้า → fallback config.js
+function fcCostRate(brand,y){
+  const cfg=DB.config||[];
+  const c=cfg.find(x=>x.brand===brand&&String(x.year)===String(y)) || cfg.find(x=>x.brand===brand) || {};
+  const base=(window.BRAND_RATES||{})[brand]||{cost:35};
+  return (c.cost_rate!==''&&c.cost_rate!=null)?Number(c.cost_rate):base.cost;
+}
+function fcDefaultRates(brand,yBase,yTarget){
+  const g=fcAgg(brand,yBase);
+  const price=g.sales+g.disc;                  // ราคาขาย (ราคาเต็ม) ของปีฐาน
+  const r={cost:fcCostRate(brand,yTarget),disc:0,rent:0,ads:0,gp:0,inf:0,collab:0,comm:0};
+  if(price>0){
+    r.disc=g.disc/price*100;     r.rent=g.rent/price*100;   r.ads=g.ads/price*100;
+    r.gp=g.gp/price*100;         r.inf=g.inf/price*100;
+    r.collab=g.collab/price*100; r.comm=g.comm/price*100;
+  }
+  return r;
+}
+function fcDataYears(){ return [...new Set((DB.sales||[]).map(r=>Number(r.year)).filter(Boolean))].sort((a,b)=>b-a); }
+function fcTargetTotal(b){ let s=0; for(let m=1;m<=12;m++) s+=num(T[b]?T[b][m]:0); return s; }
+
+function fcCalc(b){
+  const r=FCR[b]||{};
+  const tg=fcTargetTotal(b);                        // เป้าทั้งปี = ยอดหลังหักส่วนลด
+  const d=Math.min(Math.max(num(r.disc),0),95);     // กันหารศูนย์/ติดลบ
+  const price=tg>0?tg/(1-d/100):0;                  // บวกส่วนลดกลับ → ราคาเต็ม
+  const o={tg,price}; let used=0;
+  FC_ROWS.forEach(({k})=>{ o[k]=price*num(r[k])/100; used+=o[k]; });
+  o.net=price-used;                                 // คงเหลือคาดการณ์
+  return o;
+}
+function fcAll(){ const o={}; BRANDS.forEach(b=>o[b]=fcCalc(b)); return o; }
+function fcSum(all,k){ return BRANDS.reduce((a,b)=>a+all[b][k],0); }
+
+function renderForecast(){
+  const card=$('#fcCard'); if(!card) return;
+  const y=$('#year').value;
+  $('#fcYear').textContent=y;
+
+  // ---- ปีฐาน ----
+  const ys=fcDataYears();
+  if(!ys.length){ card.style.display='none'; return; }
+  card.style.display='';
+  if(fcBaseYear==null||!ys.includes(Number(fcBaseYear))){
+    const prev=ys.find(v=>v<Number(y));
+    fcBaseYear=String(prev!=null?prev:ys[0]);
+  }
+  const sel=$('#fcBase'), sig=ys.join(',');
+  if(sel.dataset.sig!==sig){
+    sel.innerHTML=''; sel.dataset.sig=sig;
+    ys.forEach(v=>{const o=document.createElement('option');o.value=String(v);o.textContent=String(v);sel.appendChild(o);});
+  }
+  sel.value=String(fcBaseYear);
+
+  // ---- เติม % ตั้งต้นจากปีฐาน (ไม่ทับช่องที่ผู้ใช้แก้เอง) ----
+  let anyEdited=false;
+  BRANDS.forEach(b=>{
+    const def=fcDefaultRates(b,fcBaseYear,y);
+    if(!FCR[b]) FCR[b]={};
+    Object.keys(def).forEach(k=>{
+      if(fcEdited[b]&&fcEdited[b][k]){ anyEdited=true; return; }
+      FCR[b][k]=def[k];
+    });
+  });
+  $('#fcEditTag').style.display=anyEdited?'':'none';
+
+  // ---- ป้ายเตือน ----
+  const w=$('#fcWarn');
+  if(BRANDS.every(b=>fcTargetTotal(b)<=0)){
+    w.style.display=''; w.textContent='⚠️ ปี '+y+' ยังไม่ได้กรอกเป้า — กรอกช่องเป้าด้านบน (หรือกด ⚡ Auto forecast) แล้วตัวเลขคาดการณ์จะขึ้นเอง';
+  } else if(BRANDS.every(b=>{const g=fcAgg(b,fcBaseYear);return (g.sales+g.disc)<=0;})){
+    w.style.display=''; w.textContent='⚠️ ปี '+fcBaseYear+' ไม่มียอดขายจริงให้ดึง % — เลือกปีฐานอื่น หรือพิมพ์ % เองในช่องสีเหลือง';
+  } else { w.style.display='none'; }
+
+  // ---- หัวตาราง ----
+  const th=$('#fcTbl thead'), tb=$('#fcTbl tbody');
+  th.innerHTML='<tr><th rowspan="2">รายการ</th>'+
+    BRANDS.map((b,i)=>`<th class="grp fcb${i} fcsep" colspan="2">${b}</th>`).join('')+
+    '<th rowspan="2" class="fcsep">รวม</th><th rowspan="2">%</th></tr>'+
+    '<tr>'+BRANDS.map((b,i)=>`<th class="fcb${i} fcsep">บาท</th><th class="fcb${i}">%</th>`).join('')+'</tr>';
+
+  // ---- ตัวตาราง ---- (บาทก่อน แล้วค่อย % • แยกสีรายแบรนด์)
+  const pair=(i,inner,id)=>`<td class="fcb${i} fcsep" id="${id}">-</td><td class="fcb${i}">${inner}</td>`;
+  let html='';
+  html+=`<tr style="color:var(--muted)"><td>เป้าที่ตั้งไว้ <span style="font-size:11px">(ยอดหลังหักส่วนลด)</span></td>`+
+        BRANDS.map((b,i)=>pair(i,'',`fcA-${i}-tg`)).join('')+
+        `<td class="fcsep" id="fcT-tg">-</td><td></td></tr>`;
+  html+=`<tr style="font-weight:700"><td>1. ราคาขาย <span style="font-weight:400;font-size:11px;color:var(--muted)">(ราคาเต็ม = ฐาน 100%)</span></td>`+
+        BRANDS.map((b,i)=>pair(i,'',`fcA-${i}-price`)).join('')+
+        `<td class="fcsep" id="fcT-price">-</td><td id="fcP-price">100.0%</td></tr>`;
+  FC_ROWS.forEach(({k,label})=>{
+    html+=`<tr><td>${label}</td>`+
+      BRANDS.map((b,i)=>pair(i,`<input class="fcr" data-b="${b}" data-k="${k}" value="">`,`fcA-${i}-${k}`)).join('')+
+      `<td class="fcsep" id="fcT-${k}">-</td><td id="fcP-${k}">-</td></tr>`;
+  });
+  html+=`<tr class="total"><td>คงเหลือคาดการณ์</td>`+
+        BRANDS.map((b,i)=>pair(i,'',`fcA-${i}-net`)).join('')+
+        `<td class="fcsep" id="fcT-net">-</td><td id="fcP-net">-</td></tr>`;
+  html+=`<tr class="fccheck"><td>ตรวจยอด (ทุกบรรทัดที่หัก + คงเหลือ)</td>`+
+        BRANDS.map((b,i)=>pair(i,'',`fcA-${i}-chk`)).join('')+
+        `<td class="fcsep" id="fcT-chk">-</td><td id="fcP-chk">-</td></tr>`;
+  tb.innerHTML=html;
+
+  // ผูกช่อง % — พิมพ์แล้วอัปเดตเฉพาะตัวเลข ไม่สร้างตารางใหม่ (เคอร์เซอร์ไม่เด้ง)
+  tb.querySelectorAll('input.fcr').forEach(inp=>{
+    inp.value=Number(FCR[inp.dataset.b][inp.dataset.k]||0).toFixed(2);
+    inp.addEventListener('input',()=>{
+      const b=inp.dataset.b,k=inp.dataset.k;
+      FCR[b][k]=inp.value===''?0:Number(inp.value);
+      if(!fcEdited[b]) fcEdited[b]={};
+      fcEdited[b][k]=true;
+      $('#fcEditTag').style.display='';
+      fcRefreshNumbers();
+    });
+  });
+  fcRefreshNumbers();
+}
+
+// อัปเดตเฉพาะตัวเลข (ไม่แตะช่องกรอก)
+function fcRefreshNumbers(){
+  const tb=$('#fcTbl tbody'); if(!tb||!tb.innerHTML) return;
+  const all=fcAll();
+  const set=(id,txt,color)=>{const el=document.getElementById(id); if(el){el.textContent=txt; if(color!==undefined) el.style.color=color;}};
+  const basePrice=fcSum(all,'price');
+  const pct=v=>basePrice>0?(v/basePrice*100).toFixed(1)+'%':'—';
+
+  BRANDS.forEach((b,i)=>{
+    set(`fcA-${i}-tg`,'฿'+baht(all[b].tg));
+    set(`fcA-${i}-price`,'฿'+baht(all[b].price));
+    FC_ROWS.forEach(({k})=>set(`fcA-${i}-${k}`,'฿'+baht(all[b][k])));
+    set(`fcA-${i}-net`,'฿'+baht(all[b].net), all[b].net<0?'var(--bad)':'');
+    const chk=all[b].price>0?(FC_ROWS.reduce((a,{k})=>a+all[b][k],0)+all[b].net)/all[b].price*100:0;
+    set(`fcA-${i}-chk`, all[b].price>0?chk.toFixed(1)+'%':'—');
+  });
+  set('fcT-tg','฿'+baht(fcSum(all,'tg')));
+  set('fcT-price','฿'+baht(basePrice));
+  FC_ROWS.forEach(({k})=>{ const s=fcSum(all,k); set(`fcT-${k}`,'฿'+baht(s)); set(`fcP-${k}`,pct(s)); });
+  const netT=fcSum(all,'net');
+  set('fcT-net','฿'+baht(netT), netT<0?'var(--bad)':'');
+  set('fcP-net',pct(netT), netT<0?'var(--bad)':'');
+  const chkT=basePrice>0?(FC_ROWS.reduce((a,{k})=>a+fcSum(all,k),0)+netT)/basePrice*100:0;
+  const ok=basePrice>0&&Math.abs(chkT-100)<0.05;
+  set('fcT-chk', basePrice>0?chkT.toFixed(1)+'%':'—');
+  set('fcP-chk', basePrice>0?(ok?'✓ 100%':chkT.toFixed(1)+'%'):'—', ok?'var(--ok)':'var(--bad)');
+}
+
+// ตารางสำหรับ Export Excel
+function forecastAoa(){
+  const y=$('#year').value, all=fcAll(), basePrice=fcSum(all,'price');
+  const pct=v=>basePrice>0?+(v/basePrice*100).toFixed(2):'';
+  const head=['รายการ']; BRANDS.forEach(b=>head.push(b+' บาท',b+' %')); head.push('รวม','% ของราคาขาย');
+  const aoa=[[`P&L คาดการณ์ ปี ${y} — ใช้ % จากปี ${fcBaseYear||'-'}`],[],head];
+  const line=(label,k,withPct)=>{
+    const row=[label];
+    BRANDS.forEach(b=>row.push(all[b][k], withPct?+Number(FCR[b][k]||0).toFixed(2):''));
+    row.push(fcSum(all,k), pct(fcSum(all,k)));
+    return row;
+  };
+  aoa.push(line('เป้าที่ตั้งไว้ (ยอดหลังหักส่วนลด)','tg',false));
+  aoa.push(line('1. ราคาขาย','price',false));
+  FC_ROWS.forEach(({k,label})=>aoa.push(line(label,k,true)));
+  aoa.push(line('คงเหลือคาดการณ์','net',false));
+  return aoa;
 }
 
 function showMsg(t,c){ const m=$('#msg'); m.textContent=t; m.className='msg '+c; if(c==='ok'||c==='err') setTimeout(()=>m.className='msg',4000); }
@@ -279,11 +507,13 @@ function exportExcel(){
   const totRow=['รวม'];
   BRANDS.forEach(b=>{ let t=0,a=0; for(let m=1;m<=12;m++){t+=num(T[b][m]);a+=actual(y,b,m);} totRow.push(t,a,pc(a,t)); });
   br.push(totRow);
-  exportXLSX(`เป้าvsจริง_${y}.xlsx`,[{name:'GrandTotal',aoa:g},{name:'รายแบรนด์',aoa:br}]);
+  exportXLSX(`เป้าvsจริง_${y}.xlsx`,[{name:'GrandTotal',aoa:g},{name:'รายแบรนด์',aoa:br},{name:'P&L คาดการณ์',aoa:forecastAoa()}]);
 }
 $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
 $('#xlsxBtn').addEventListener('click',exportExcel);
-$('#year').addEventListener('change',()=>render());
+$('#year').addEventListener('change',()=>{ fcBaseYear=null; fcEdited={}; render(); });
+$('#fcBase').addEventListener('change',()=>{ fcBaseYear=$('#fcBase').value; fcEdited={}; renderForecast(); });
+$('#fcReset').addEventListener('click',()=>{ fcEdited={}; renderForecast(); showMsg('รีเซ็ต % กลับเป็นของปี '+fcBaseYear+' แล้ว','info'); });
 $('#reload').addEventListener('click',()=>boot(true));   // ปุ่มรีเฟรช = ดึงข้อมูลสดเสมอ
 $('#lockBtn').addEventListener('click',()=>{
   unlocked=!unlocked;
