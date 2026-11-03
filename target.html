@@ -64,6 +64,16 @@
   #fcTbl thead .grp.fcb0 { color:#1e40af; } #fcTbl thead .grp.fcb1 { color:#166534; }
   #fcTbl thead .grp.fcb2 { color:#9a3412; } #fcTbl thead .grp.fcb3 { color:#6b21a8; }
   #fcTbl .fcsep { border-left:2px solid #cbd5e1; }
+  /* ---- ตารางเทียบรายปี ---- */
+  #yoyTbl td.num, #yoyTbl th.num { text-align:right; }
+  #yoyTbl .fcast { background:#fffbeb; border-left:2px solid #fcd34d; font-weight:700; }
+  #yoyTbl thead .fcast { background:#fef3c7; color:#92400e; }
+  #yoyTbl .dcol { border-left:2px solid #cbd5e1; font-weight:700; }
+  #yoyTbl tr.netrow td { font-weight:800; border-top:2px solid var(--line); background:#f8fafc; }
+  #yoyTbl tr.netrow td.fcast { background:#fef3c7; }
+  .up { color:var(--bad); } .down { color:var(--ok); } .flat { color:var(--muted); font-weight:400; }
+  #yoyTbl tr.pricerow td { font-weight:700; background:#f8fafc; }
+  #yoyTbl tr.pricerow td.fcast { background:#fef3c7; }
 </style>
 </head>
 <body>
@@ -126,6 +136,26 @@
       ช่อง <b>%</b> สีเหลืองพิมพ์แก้ได้ (ลองสมมติฐาน เช่น ลดค่าแอดเหลือ 6%) • แก้เป้าด้านบนแล้วตัวเลขที่นี่ขยับทันที<br>
       <b>ฐาน % = ราคาขาย 100%</b> → ทุกบรรทัดที่หัก + คงเหลือคาดการณ์ รวมกันได้ 100% พอดี (ดูแถวตรวจยอดล่างสุด)<br>
       <b>ราคาขาย</b> = เป้าที่กรอก (ยอดหลังหักส่วนลด) บวกส่วนลดกลับตาม % ที่ตั้งไว้ — เพื่อให้อ่านเหมือนตาราง P&amp;L และไฟล์ Excel
+    </div>
+  </div>
+
+  <div class="card" id="yoyCard">
+    <h2>📈 เทียบรายปี — อะไรเปลี่ยนไปบ้าง
+      <span style="font-weight:400;color:var(--muted);font-size:12px">(ปีจริง = ข้อมูลที่กรอกไว้ • ปีคาด = ตารางด้านบน)</span></h2>
+    <div class="fcbar">
+      <label>แบรนด์</label>
+      <select id="yoyBrand"></select>
+      <label>แสดงเป็น</label>
+      <button class="btn ghost" id="yoyMode">% ของราคาขาย</button>
+      <span style="font-size:12px;color:var(--muted)">กดเพื่อสลับเป็นบาท</span>
+    </div>
+    <div class="tblscroll"><table id="yoyTbl"><thead></thead><tbody></tbody></table></div>
+    <div class="hint">
+      ทุกบรรทัด (ยกเว้นราคาขาย) คิดเป็น <b>% ของราคาขายปีนั้นๆ</b> → เทียบข้ามปีได้ตรงๆ แม้ยอดขายไม่เท่ากัน<br>
+      คอลัมน์ <b>ต่าง</b> = ปีคาด เทียบกับ <b>ปีฐาน</b> ที่เลือกไว้ข้างบน •
+      <span class="down" style="font-weight:700">เขียว = ดีขึ้น</span> (ค่าใช้จ่ายลด / คงเหลือเพิ่ม) •
+      <span class="up" style="font-weight:700">แดง = แย่ลง</span><br>
+      ถ้ายังไม่ได้แก้ % เอง คอลัมน์ต่างจะเป็น 0 เกือบทุกบรรทัด — เพราะปีคาดใช้โครงสร้าง % ของปีฐานตรงๆ (ยกเว้นต้นทุนที่มาจากหน้าตั้งค่า)
     </div>
   </div>
 </div>
@@ -411,6 +441,89 @@ function fcRefreshNumbers(){
   const ok=basePrice>0&&Math.abs(chkT-100)<0.05;
   set('fcT-chk', basePrice>0?chkT.toFixed(1)+'%':'—');
   set('fcP-chk', basePrice>0?(ok?'✓ 100%':chkT.toFixed(1)+'%'):'—', ok?'var(--ok)':'var(--bad)');
+  renderYoY();   // ตารางเทียบรายปีใช้ตัวเลขชุดเดียวกัน อัปเดตพร้อมกันเสมอ
+}
+
+// ================= 📈 เทียบรายปี (อ่านอย่างเดียว) =================
+let yoyMode='pct';     // 'pct' = % ของราคาขาย | 'baht' = บาท
+let yoyBrand='ALL';
+const YOY_MAX_YEARS=4; // แสดงปีจริงย้อนหลังกี่ปี
+
+function yoyBrands(){ return yoyBrand==='ALL'?BRANDS:[yoyBrand]; }
+// P&L ของ "ปีจริง" 1 แบรนด์ — สูตรเดียวกับ pnl() ในหน้า Dashboard
+function yoyActual(brand,y){
+  const g=fcAgg(brand,y);
+  const price=g.sales+g.disc;
+  const cost=price*fcCostRate(brand,y)/100;
+  const o={price,cost,disc:g.disc,rent:g.rent,ads:g.ads,gp:g.gp,inf:g.inf,collab:g.collab,comm:g.comm};
+  o.net=price-cost-g.disc-g.rent-g.ads-g.gp-g.inf-g.collab-g.comm;
+  return o;
+}
+const YOY_KEYS=['price',...FC_ROWS.map(r=>r.k),'net'];
+function yoyAddUp(objs){
+  const o={}; YOY_KEYS.forEach(k=>o[k]=objs.reduce((a,x)=>a+(x[k]||0),0)); return o;
+}
+function yoyActualAgg(y){ return yoyAddUp(yoyBrands().map(b=>yoyActual(b,y))); }
+function yoyForecastAgg(){ return yoyAddUp(yoyBrands().map(b=>fcCalc(b))); }
+
+function renderYoY(){
+  const card=$('#yoyCard'); if(!card) return;
+  const y=$('#year').value;
+
+  // dropdown แบรนด์ (สร้างครั้งเดียว)
+  const bsel=$('#yoyBrand');
+  if(!bsel.dataset.built){
+    bsel.dataset.built='1';
+    const add=(v,t)=>{const o=document.createElement('option');o.value=v;o.textContent=t;bsel.appendChild(o);};
+    add('ALL','รวมทุกแบรนด์'); BRANDS.forEach(b=>add(b,b));
+    bsel.value=yoyBrand;
+  }
+
+  const ys=fcDataYears().slice(0,YOY_MAX_YEARS).sort((a,b)=>a-b);   // ปีจริง เรียงจากเก่าไปใหม่
+  if(!ys.length){ card.style.display='none'; return; }
+  card.style.display='';
+
+  const act={}; ys.forEach(v=>act[v]=yoyActualAgg(v));
+  const fc=yoyForecastAgg();
+  const base=fcBaseYear!=null?yoyActualAgg(fcBaseYear):null;
+  const isPct=yoyMode==='pct';
+  $('#yoyMode').textContent=isPct?'% ของราคาขาย':'บาท';
+
+  // ---- หัวตาราง ----
+  $('#yoyTbl thead').innerHTML='<tr><th>รายการ</th>'+
+    ys.map(v=>`<th class="num">${v}</th>`).join('')+
+    `<th class="num fcast">${y} (คาด)</th>`+
+    `<th class="num dcol">ต่างจาก ${fcBaseYear||'-'}</th></tr>`;
+
+  // ---- ค่าในช่อง ----
+  const show=(o,k)=>{
+    if(!o||!o.price) return '—';
+    if(k==='price') return '฿'+baht(o.price);                      // ราคาขายโชว์บาทเสมอ
+    return isPct ? (o[k]/o.price*100).toFixed(1)+'%' : '฿'+baht(o[k]);
+  };
+  // ---- คอลัมน์ "ต่าง" ----
+  const diffCell=k=>{
+    if(!base||!base.price||!fc.price) return '<td class="num dcol flat">—</td>';
+    let val,txt;
+    if(k==='price'||!isPct){
+      if(!base[k]) return '<td class="num dcol flat">—</td>';
+      val=(fc[k]-base[k])/base[k]*100; txt=(val>=0?'+':'')+val.toFixed(1)+'%';
+    }else{
+      val=(fc[k]/fc.price*100)-(base[k]/base.price*100); txt=(val>=0?'+':'')+val.toFixed(1)+' จุด';
+    }
+    const good=(k==='net'||k==='price')?val>0:val<0;
+    const cls=Math.abs(val)<0.05?'flat':(good?'down':'up');
+    if(Math.abs(val)<0.05) txt='0.0'+(k==='price'||!isPct?'%':' จุด');
+    return `<td class="num dcol ${cls}">${txt}</td>`;
+  };
+  const line=(label,k,cls)=>`<tr class="${cls||''}"><td>${label}</td>`+
+    ys.map(v=>`<td class="num">${show(act[v],k)}</td>`).join('')+
+    `<td class="num fcast">${show(fc,k)}</td>`+diffCell(k)+'</tr>';
+
+  $('#yoyTbl tbody').innerHTML=
+    line('1. ราคาขาย <span style="font-weight:400;font-size:11px;color:var(--muted)">(บาทเสมอ)</span>','price','pricerow')+
+    FC_ROWS.map(r=>line(r.label,r.k)).join('')+
+    line('คงเหลือ','net','netrow');
 }
 
 // ตารางสำหรับ Export Excel
@@ -429,6 +542,29 @@ function forecastAoa(){
   aoa.push(line('1. ราคาขาย','price',false));
   FC_ROWS.forEach(({k,label})=>aoa.push(line(label,k,true)));
   aoa.push(line('คงเหลือคาดการณ์','net',false));
+  return aoa;
+}
+
+// ตารางเทียบรายปี สำหรับ Export Excel (ส่งออกทั้งบาทและ % ทุกปี)
+function yoyAoa(){
+  const y=$('#year').value;
+  const ys=fcDataYears().slice(0,YOY_MAX_YEARS).sort((a,b)=>a-b);
+  const act={}; ys.forEach(v=>act[v]=yoyActualAgg(v));
+  const fc=yoyForecastAgg();
+  const head=['รายการ'];
+  ys.forEach(v=>head.push(v+' บาท',v+' %'));
+  head.push(y+' (คาด) บาท',y+' (คาด) %');
+  const cells=(o,k)=>[ o&&o.price?o[k]:'', (o&&o.price)?+(o[k]/o.price*100).toFixed(2):'' ];
+  const aoa=[[`เทียบรายปี — ${yoyBrand==='ALL'?'รวมทุกแบรนด์':yoyBrand} (ปีคาด ${y} ใช้ % จากปี ${fcBaseYear||'-'})`],[],head];
+  const line=(label,k)=>{
+    const row=[label];
+    ys.forEach(v=>row.push(...cells(act[v],k)));
+    row.push(...cells(fc,k));
+    return row;
+  };
+  aoa.push(line('1. ราคาขาย','price'));
+  FC_ROWS.forEach(r=>aoa.push(line(r.label,r.k)));
+  aoa.push(line('คงเหลือ','net'));
   return aoa;
 }
 
@@ -507,13 +643,15 @@ function exportExcel(){
   const totRow=['รวม'];
   BRANDS.forEach(b=>{ let t=0,a=0; for(let m=1;m<=12;m++){t+=num(T[b][m]);a+=actual(y,b,m);} totRow.push(t,a,pc(a,t)); });
   br.push(totRow);
-  exportXLSX(`เป้าvsจริง_${y}.xlsx`,[{name:'GrandTotal',aoa:g},{name:'รายแบรนด์',aoa:br},{name:'P&L คาดการณ์',aoa:forecastAoa()}]);
+  exportXLSX(`เป้าvsจริง_${y}.xlsx`,[{name:'GrandTotal',aoa:g},{name:'รายแบรนด์',aoa:br},{name:'P&L คาดการณ์',aoa:forecastAoa()},{name:'เทียบรายปี',aoa:yoyAoa()}]);
 }
 $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
 $('#xlsxBtn').addEventListener('click',exportExcel);
 $('#year').addEventListener('change',()=>{ fcBaseYear=null; fcEdited={}; render(); });
 $('#fcBase').addEventListener('change',()=>{ fcBaseYear=$('#fcBase').value; fcEdited={}; renderForecast(); });
 $('#fcReset').addEventListener('click',()=>{ fcEdited={}; renderForecast(); showMsg('รีเซ็ต % กลับเป็นของปี '+fcBaseYear+' แล้ว','info'); });
+$('#yoyBrand').addEventListener('change',()=>{ yoyBrand=$('#yoyBrand').value; renderYoY(); });
+$('#yoyMode').addEventListener('click',()=>{ yoyMode=(yoyMode==='pct'?'baht':'pct'); renderYoY(); });
 $('#reload').addEventListener('click',()=>boot(true));   // ปุ่มรีเฟรช = ดึงข้อมูลสดเสมอ
 $('#lockBtn').addEventListener('click',()=>{
   unlocked=!unlocked;
