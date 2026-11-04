@@ -127,7 +127,7 @@
     <div class="fcbar">
       <label>ใช้ % จากปี</label>
       <select id="fcBase"></select>
-      <button class="btn ghost" id="fcReset" title="ล้าง % ที่พิมพ์แก้เอง กลับไปใช้ % ของปีฐาน">↺ รีเซ็ต %</button>
+      <button class="btn ghost" id="fcReset" style="display:none" title="ล้าง % ที่พิมพ์แก้เอง กลับไปใช้ % ของปีฐาน">↺ รีเซ็ต %</button>
       <span id="fcEditTag" class="fctag" style="display:none">✏️ มี % ที่แก้เอง</span>
     </div>
     <div id="fcWarn" class="fcwarn" style="display:none"></div>
@@ -361,7 +361,9 @@ function renderForecast(){
       FCR[b][k]=def[k];
     });
   });
+  // ป้าย "แก้เอง" + ปุ่มรีเซ็ต โผล่เฉพาะตอนมี % ที่พิมพ์แก้เอง (ไม่งั้นรกตา)
   $('#fcEditTag').style.display=anyEdited?'':'none';
+  $('#fcReset').style.display=anyEdited?'':'none';
 
   // ---- ป้ายเตือน ----
   const w=$('#fcWarn');
@@ -408,7 +410,7 @@ function renderForecast(){
       FCR[b][k]=inp.value===''?0:Number(inp.value);
       if(!fcEdited[b]) fcEdited[b]={};
       fcEdited[b][k]=true;
-      $('#fcEditTag').style.display='';
+      $('#fcEditTag').style.display=''; $('#fcReset').style.display='';
       fcRefreshNumbers();
     });
   });
