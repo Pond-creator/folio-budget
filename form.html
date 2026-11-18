@@ -74,8 +74,28 @@
     <div><label>ปี</label><select id="year"></select></div>
     <div><label>เดือน</label><select id="month"></select></div>
     <button class="btn ghost" id="loadBtn">โหลดข้อมูลเดือนนี้</button>
+    <button class="btn ghost" id="snBtn" title="ดึงยอดขาย/ส่วนลด จากหน้าพักข้อมูลช่องทาง ของเดือนที่เลือก">📥 ดึงจากพักข้อมูล</button>
     <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
     <div class="hint" style="flex:1">เลือกเดือนแล้วกด “โหลด” เพื่อแก้ของเดิม หรือกรอกใหม่ได้เลย • ยอดที่บันทึกจะถูกล็อกเป็น snapshot</div>
+  </div>
+
+  <div class="card" id="snBox" style="display:none;border:2px solid var(--brand)">
+    <h2>📥 ยอดจากหน้าพักข้อมูลช่องทาง — <span id="snWhen"></span></h2>
+    <div id="snNeedLoad" class="msg err" style="display:none;margin-bottom:12px">
+      ⚠️ <b>ยังไม่ได้กด “โหลดข้อมูลเดือนนี้”</b> — ถ้าเติมแล้วบันทึกเลย ช่องอื่นที่ว่างอยู่
+      (จำนวนชิ้น · ค่าโฆษณา · GP · ค่าเช่า · Influencer · Collaborate) จะถูกบันทึกทับเป็นค่าว่าง<br>
+      กดปุ่มน้ำเงินด้านล่าง ระบบจะโหลดข้อมูลเดือนนี้ให้ก่อน แล้วค่อยเติมยอดให้เอง
+    </div>
+    <table id="snTbl">
+      <thead><tr><th>แบรนด์</th><th>ยอดขายเดิม</th><th>ยอดขายใหม่</th><th>ส่วนลดเดิม</th><th>ส่วนลดใหม่</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <p class="hint" id="snInfo" style="margin-top:8px"></p>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+      <button class="btn" id="snApply">✔ เติมลงตาราง</button>
+      <button class="btn ghost" id="snCancel">✕ ยกเลิก</button>
+      <span class="hint" style="margin:0;align-self:center">เติมแล้ว <b>ต้องกด 💾 บันทึกเดือนนี้ เองอีกที</b> • แตะเฉพาะช่องยอดขายกับส่วนลด ช่องอื่นไม่ยุ่ง</span>
+    </div>
   </div>
 
   <div class="card">
@@ -305,8 +325,98 @@ function loadMonth(){
   if(sd.length){ $('#sideTbl tbody').innerHTML=''; sd.forEach(r=>addSideRow(r.project,r.amount,r.note||'')); }
   updateSummary();
   markGpWarning();
+  SN_LOADED = y+'-'+m;          // จำว่าโหลดเดือนไหนไว้แล้ว (ใช้กันเคสบันทึกทับค่าว่าง)
   showMsg(`โหลดข้อมูล ${MONTHS_TH[m-1]} ${y} แล้ว`, 'info');
 }
+
+// ================= 📥 ดึงยอดจากหน้าพักข้อมูลช่องทาง (ScratchNote) =================
+// อ่านจากชีตที่โหลดมาแล้ว ไม่ยิง API ใหม่ · แตะเฉพาะช่อง ยอดขาย + ส่วนลด
+// ไม่บันทึกเอง · ไม่แตะ จำนวนชิ้น/ค่าแอด/GP/ค่าเช่า/Influencer/Collaborate/โปรเจคเสริม
+let SN_LOADED = null;   // "ปี-เดือน" ที่กด "โหลดข้อมูลเดือนนี้" ไปแล้ว
+let SN_RESULT = null;
+
+function snRows(){
+  const y=$('#year').value, m=$('#month').value;
+  const sum={};   // brand -> {sales, discount, n}
+  (DB.notes||[]).filter(r=>String(r.year)===y&&String(r.month)===m).forEach(r=>{
+    if(!r.brand) return;
+    if(!sum[r.brand]) sum[r.brand]={sales:0,discount:0,n:0};
+    sum[r.brand].sales    += Number(r.amount)||0;
+    sum[r.brand].discount += Number(r.discount)||0;
+    sum[r.brand].n++;
+  });
+  const r2=v=>Math.round(v*100)/100;
+  return Object.keys(sum).map(b=>({brand:b, sales:r2(sum[b].sales), discount:r2(sum[b].discount), n:sum[b].n}));
+}
+
+function snOpen(){
+  if(!AUTH.canEdit()){ showMsg('สิทธิ์นี้แก้ข้อมูลไม่ได้','err'); return; }
+  const y=$('#year').value, m=$('#month').value;
+  const rows=snRows();
+  if(!rows.length){
+    showMsg(`หน้าพักข้อมูลช่องทางยังไม่มียอดของ ${MONTHS_TH[m-1]} ${y} — ไปกรอก/ดึงในหน้านั้นแล้วกด 💾 บันทึก ก่อน`,'err');
+    return;
+  }
+  // จับคู่กับแถวในตารางยอดขาย
+  const trs=[...$('#salesTbl tbody').children];
+  const matched=[], skipped=[];
+  rows.forEach(r=>{
+    const tr=trs.find(t=>t.dataset.brand===r.brand);
+    if(tr) matched.push({...r, tr,
+      oldSales:tr.querySelector('[data-f=sales]').value,
+      oldDisc: tr.querySelector('[data-f=discount]').value});
+    else skipped.push(r.brand);
+  });
+  if(!matched.length){
+    showMsg('ยอดในหน้าพักข้อมูลเป็นแบรนด์ที่ไม่มีในตารางนี้ ('+skipped.join(', ')+') — ตรวจชื่อแบรนด์ในหน้าตั้งค่า','err');
+    return;
+  }
+  SN_RESULT={year:y, month:m, matched, skipped};
+  snPreview();
+}
+
+function snPreview(){
+  const R=SN_RESULT; if(!R) return;
+  const fmt=v=>(v===''||v==null)?'—':'฿'+(Number(v)||0).toLocaleString(undefined,{maximumFractionDigits:2});
+  const chg=(a,b)=>(Number(a)||0)===(Number(b)||0)?'color:var(--muted)':'font-weight:700;color:var(--brand)';
+  $('#snWhen').textContent=MONTHS_TH[R.month-1]+' '+R.year;
+  $('#snTbl tbody').innerHTML=R.matched.map(r=>
+    `<tr><td>${r.brand} <span style="color:var(--muted);font-size:11px">(${r.n} แถว)</span></td>`+
+    `<td style="color:var(--muted)">${fmt(r.oldSales)}</td><td style="${chg(r.oldSales,r.sales)}">${fmt(r.sales)}</td>`+
+    `<td style="color:var(--muted)">${fmt(r.oldDisc)}</td><td style="${chg(r.oldDisc,r.discount)}">${fmt(r.discount)}</td></tr>`).join('');
+  const needLoad = SN_LOADED !== (R.year+'-'+R.month);
+  $('#snNeedLoad').style.display = needLoad ? 'block' : 'none';
+  $('#snApply').textContent = needLoad ? '📂 โหลดเดือนนี้ก่อน แล้วเติมให้' : '✔ เติมลงตาราง';
+  $('#snInfo').innerHTML = 'เติม '+R.matched.length+' แบรนด์'+
+    (R.skipped.length?' · <b style="color:var(--bad)">ข้าม '+R.skipped.length+' แบรนด์ที่ไม่มีในตารางนี้: '+R.skipped.join(', ')+'</b>':'');
+  $('#snBox').style.display='';
+  $('#snBox').scrollIntoView({block:'start'});
+  $('#msg').className='msg';
+}
+
+function snApply(){
+  const R=SN_RESULT; if(!R) return;
+  if(SN_LOADED !== (R.year+'-'+R.month)){
+    loadMonth();        // โหลดของเดิมให้ครบทุกช่องก่อน (กันบันทึกทับค่าว่าง) + ตั้ง SN_LOADED
+    snOpen();           // จับคู่แถวใหม่ เพราะ buildSales() สร้าง <tr> ใหม่หมด
+    if(!SN_RESULT) return;
+  }
+  snFill();
+}
+
+function snFill(){
+  const R=SN_RESULT; if(!R) return;
+  R.matched.forEach(r=>{
+    r.tr.querySelector('[data-f=sales]').value    = r.sales;
+    r.tr.querySelector('[data-f=discount]').value = r.discount;
+    recalcRow(r.tr);
+  });
+  updateSummary();
+  markGpWarning();
+  snClose();
+  showMsg('เติมยอดขาย/ส่วนลด '+R.matched.length+' แบรนด์แล้ว — ยังไม่ได้บันทึก กด 💾 บันทึกเดือนนี้ เพื่อเก็บลงชีต','ok');
+}
+function snClose(){ $('#snBox').style.display='none'; SN_RESULT=null; }
 
 function collect(){
   const y=Number($('#year').value), m=Number($('#month').value);
@@ -397,7 +507,12 @@ $('#xlsxBtn').addEventListener('click', exportExcel);
 $('#loadBtn').addEventListener('click', loadMonth);
 $('#saveBtn').addEventListener('click', save);
 $('#addSide').addEventListener('click', ()=>addSideRow());
-$('#year').addEventListener('change', ()=>buildAds());
+$('#snBtn').addEventListener('click', snOpen);
+$('#snApply').addEventListener('click', snApply);
+$('#snCancel').addEventListener('click', ()=>{ snClose(); showMsg('ยกเลิกแล้ว ไม่มีอะไรเปลี่ยน','info'); });
+// เปลี่ยนปี/เดือน = ของที่โหลดไว้ใช้ไม่ได้แล้ว ต้องกดโหลดใหม่ก่อนเติม
+$('#year').addEventListener('change', ()=>{ SN_LOADED=null; snClose(); buildAds(); });
+$('#month').addEventListener('change', ()=>{ SN_LOADED=null; snClose(); });
 
 // ช่องตัวเลข: พิมพ์ได้แค่ตัวเลข + จุดทศนิยม (บล็อก e/E/+/-) เว้นว่างได้
 document.addEventListener('keydown', e=>{
