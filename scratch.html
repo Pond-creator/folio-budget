@@ -66,10 +66,28 @@
     <div><label>ปี</label><select id="year"></select></div>
     <div><label>เดือน</label><select id="month"></select></div>
     <button class="btn ghost" id="loadBtn">📂 โหลดเดือนนี้</button>
+    <button class="btn ghost" id="p1Btn" title="อ่านไฟล์ Excel ใน output ของโปรเจค 1 แล้วสรุปยอดขาย/ส่วนลดของเดือนที่เลือก">📥 ดึงจากโปรเจค 1</button>
+    <input type="file" id="p1Dir" webkitdirectory directory multiple style="display:none">
+    <input type="file" id="p1Files" accept=".xlsx" multiple style="display:none">
     <div style="flex:1"></div>
     <button class="btn ghost" id="addRow">+ เพิ่มแถว</button>
     <button class="btn ghost" id="xlsxBtn">📥 Excel</button>
     <button class="btn" id="saveBtn">💾 บันทึก</button>
+  </div>
+
+  <div class="card" id="p1Box" style="display:none;border:2px solid var(--brand)">
+    <h2>📥 ข้อมูลที่ดึงได้จากโปรเจค 1 — <span id="p1When"></span></h2>
+    <p class="hint" id="p1Info" style="margin:0 0 10px"></p>
+    <table id="p1Tbl">
+      <thead><tr><th>ช่องทาง</th><th>แบรนด์</th><th style="text-align:right">ยอดขาย</th><th style="text-align:right">ส่วนลด</th><th style="text-align:right">ออเดอร์</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+      <button class="btn" id="p1Replace">✔ แทนที่ทั้งหมด</button>
+      <button class="btn ghost" id="p1Append">➕ เพิ่มต่อท้าย</button>
+      <button class="btn ghost" id="p1Cancel">✕ ยกเลิก</button>
+      <span class="hint" style="margin:0;align-self:center">ใส่ลงตารางแล้ว <b>ต้องกด 💾 บันทึก เองอีกที</b> ข้อมูลถึงจะเข้าชีต</span>
+    </div>
   </div>
 
   <div class="card">
@@ -103,8 +121,11 @@ function channels(){ return (DB.channels||[]).slice().sort((a,b)=>(Number(a.orde
 
 function addRow(d={}){
   const tr=document.createElement('tr');
-  const bOpts=brands().map(b=>`<option ${d.brand===b?'selected':''}>${b}</option>`).join('');
-  const cOpts='<option value=""></option>'+channels().map(c=>`<option ${d.channel===c?'selected':''}>${c}</option>`).join('');
+  // ค่าที่ส่งมาแต่ยังไม่มีในรายการตั้งค่า (เช่นช่องทาง Other) ให้เติมเป็นตัวเลือกพิเศษ กันค่าหาย
+  const bList=brands().slice(); if(d.brand&&!bList.includes(d.brand)) bList.push(d.brand);
+  const cList=channels().slice(); if(d.channel&&!cList.includes(d.channel)) cList.push(d.channel);
+  const bOpts=bList.map(b=>`<option ${d.brand===b?'selected':''}>${b}</option>`).join('');
+  const cOpts='<option value=""></option>'+cList.map(c=>`<option ${d.channel===c?'selected':''}>${c}</option>`).join('');
   tr.innerHTML=`<td><select data-k="brand">${bOpts}</select></td>`+
     `<td><select data-k="channel">${cOpts}</select></td>`+
     `<td class="num"><input type="number" data-k="amount" value="${d.amount!=null?d.amount:''}"></td>`+
@@ -203,6 +224,128 @@ function exportExcel(){
   collect().forEach(r=>aoa.push([r.year,MONTHS[r.month-1],r.brand,r.channel||'',Number(r.amount)||'',Number(r.discount)||'',r.note||'']));
   exportXLSX(`พักข้อมูลช่องทาง_${MONTHS[m-1]}${y}.xlsx`,[{name:'ช่องทาง',aoa}]);
 }
+// ================= 📥 ดึงข้อมูลจากโปรเจค 1 (Folio Sales Dashboard) =================
+// อ่านไฟล์ Excel ใน output\ ของโปรเจค 1 ผ่านตัวเลือกโฟลเดอร์ของเบราว์เซอร์
+// อ่านอย่างเดียว — ไม่แก้/ไม่เขียนไฟล์โปรเจค 1 และไม่บันทึกลงชีตเอง (ผู้ใช้ต้องกดบันทึกเอง)
+// สูตรตรงกับ build_dashboard.py ของโปรเจค 1 เป๊ะ:
+//   ยอดขาย = คอลัมน์ L (index 11) · ส่วนลด = คอลัมน์ G (6) + คอลัมน์ J (9) ปัดทศนิยม 2 ต่อแถว
+const P1_RE    = /^(Shopee|Lazada|TikTok|Cash)_(FA|FO|FF|GB)\.xlsx$/i;
+const P1_CH    = { shopee:'Shopee', lazada:'Lazada', tiktok:'TikTok', cash:'Other' };
+const P1_BRAND = { FA:'Folio Art', FO:'Folio Brand', FF:'FoFellow', GB:'Giftbox' };
+const P1_SKIP  = new Set(['รวม','SUM','sum','Total','total','รวมทั้งหมด']);
+let P1_RESULT = null;
+
+const p1Num = v => { const n = typeof v==='number' ? v : parseFloat(v); return (isNaN(n)||!isFinite(n)) ? 0 : n; };
+const p1R2  = n => Math.round(n*100)/100;
+function p1Date(v){
+  if(v instanceof Date && !isNaN(v)) return {y:v.getFullYear(), m:v.getMonth()+1};
+  const mm=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v==null?'':v));
+  return mm ? {y:+mm[1], m:+mm[2]} : null;
+}
+function p1Match(want, list){
+  return list.find(x=>x===want)
+      || list.find(x=>String(x).toLowerCase()===String(want).toLowerCase())
+      || want;
+}
+function p1SumSheet(ws, year, month){
+  const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null,blankrows:false});
+  let sales=0, disc=0, orders=0;
+  for(const r of rows){
+    if(!r||!r.length) continue;
+    const oid=r[0]; if(oid==null) continue;
+    const os=String(oid).trim();
+    if(os===''||os==='None'||os.indexOf('=SUM')===0||P1_SKIP.has(os)) continue;
+    const d=p1Date(r[1]); if(!d) continue;
+    if(d.y!==year||d.m!==month) continue;      // ยึดวันที่จริงในแถว ไม่เชื่อชื่อชีตอย่างเดียว
+    sales += p1Num(r[11]);
+    disc  += p1R2(p1Num(r[6])+p1Num(r[9]));
+    orders++;
+  }
+  return {sales:p1R2(sales), disc:p1R2(disc), orders};
+}
+function p1Pick(){
+  if(!AUTH.canEdit()){ showMsg('สิทธิ์นี้แก้ข้อมูลไม่ได้','err'); return; }
+  if('webkitdirectory' in document.createElement('input')){ const d=$('#p1Dir'); d.value=''; d.click(); }
+  else { const f=$('#p1Files'); f.value=''; f.click(); }   // เบราว์เซอร์ที่เลือกทั้งโฟลเดอร์ไม่ได้
+}
+async function p1Read(fileList){
+  const y=Number($('#year').value), m=Number($('#month').value);
+  const sheetName=String(m).padStart(2,'0')+'-'+y;
+  const files=[...fileList].filter(f=>{
+    const n=(f.name||'').replace(/^.*[\\/]/,'');
+    return P1_RE.test(n) && n.indexOf('~$')!==0;
+  });
+  if(!files.length){
+    showMsg('ไม่เจอไฟล์ของโปรเจค 1 ในโฟลเดอร์ที่เลือก — ต้องเลือกโฟลเดอร์ output ที่มีไฟล์ชื่อแบบ Shopee_FA.xlsx / Cash_FO.xlsx','err');
+    return;
+  }
+  const out=[]; let skipped=0;
+  for(let i=0;i<files.length;i++){
+    const name=files[i].name.replace(/^.*[\\/]/,'');
+    showMsg('กำลังอ่านไฟล์ '+(i+1)+'/'+files.length+' — '+name,'info');
+    await new Promise(r=>setTimeout(r));        // ให้หน้าจอวาดข้อความก่อน
+    const mt=P1_RE.exec(name);
+    try{
+      const wb=XLSX.read(await files[i].arrayBuffer(),{type:'array',sheets:sheetName,cellDates:true});
+      const ws=wb.Sheets[sheetName];
+      if(!ws){ skipped++; continue; }            // เดือนนั้นไม่มีขายช่องทาง/แบรนด์นี้
+      const g=p1SumSheet(ws,y,m);
+      if(!g.orders){ skipped++; continue; }
+      out.push({ channel:P1_CH[mt[1].toLowerCase()], code:mt[2].toUpperCase(),
+                 brand:P1_BRAND[mt[2].toUpperCase()], sales:g.sales, disc:g.disc, orders:g.orders });
+    }catch(e){ showMsg('อ่านไฟล์ '+name+' ไม่ได้: '+e.message,'err'); return; }
+  }
+  if(!out.length){
+    showMsg('ไฟล์โปรเจค 1 ไม่มีข้อมูลของ '+MONTHS[m-1]+' '+y+' (หาชีตชื่อ '+sheetName+' ไม่เจอ)','err');
+    return;
+  }
+  out.sort((a,b)=> a.channel===b.channel ? b.sales-a.sales : a.channel.localeCompare(b.channel));
+  P1_RESULT={year:y, month:m, rows:out, files:files.length, skipped};
+  p1ShowPreview();
+}
+function p1ShowPreview(){
+  const R=P1_RESULT; if(!R) return;
+  $('#p1When').textContent=MONTHS[R.month-1]+' '+R.year;
+  const tA=R.rows.reduce((a,r)=>a+r.sales,0), tD=R.rows.reduce((a,r)=>a+r.disc,0), tO=R.rows.reduce((a,r)=>a+r.orders,0);
+  $('#p1Tbl tbody').innerHTML=R.rows.map(r=>
+      '<tr><td>'+r.channel+'</td><td>'+r.brand+' <span style="color:var(--muted);font-size:11px">('+r.code+')</span></td>'+
+      '<td style="text-align:right">฿'+baht(r.sales)+'</td><td style="text-align:right">฿'+baht(r.disc)+'</td>'+
+      '<td style="text-align:right">'+r.orders.toLocaleString('th-TH')+'</td></tr>').join('')+
+    '<tr style="font-weight:700;border-top:2px solid var(--line);background:#f8fafc"><td colspan="2">รวม</td>'+
+    '<td style="text-align:right">฿'+baht(tA)+'</td><td style="text-align:right">฿'+baht(tD)+'</td>'+
+    '<td style="text-align:right">'+tO.toLocaleString('th-TH')+'</td></tr>';
+  const cur=collect().length;
+  $('#p1Info').innerHTML='อ่านไฟล์ '+R.files+' ไฟล์ · มีข้อมูลเดือนนี้ '+R.rows.length+' รายการ'+
+    (R.skipped?' · ข้าม '+R.skipped+' ไฟล์ที่ไม่มีข้อมูลเดือนนี้':'')+
+    (cur?' · <b style="color:var(--warn)">ตอนนี้ในตารางมี '+cur+' แถวอยู่แล้ว</b>':'');
+  $('#p1Append').style.display=cur?'':'none';
+  $('#p1Box').style.display='';
+  $('#p1Box').scrollIntoView({block:'start'});
+  $('#msg').className='msg';
+}
+function p1Apply(mode){
+  const R=P1_RESULT; if(!R) return;
+  if(mode==='replace') $('#tbl tbody').innerHTML='';
+  R.rows.forEach(r=>addRow({
+    brand:    p1Match(r.brand,   brands()),
+    channel:  p1Match(r.channel, channels()),
+    amount:   r.sales,
+    discount: r.disc,
+    note:     'จากโปรเจค 1 · '+r.orders+' ออเดอร์'
+  }));
+  renderSummary();
+  p1Close();
+  showMsg('ใส่ข้อมูล '+R.rows.length+' แถวลงตารางแล้ว — ยังไม่ได้บันทึก กด 💾 บันทึก เพื่อเก็บลงชีต','ok');
+}
+function p1Close(){ $('#p1Box').style.display='none'; P1_RESULT=null; }
+
+$('#p1Btn').addEventListener('click',p1Pick);
+$('#p1Dir').addEventListener('change',e=>p1Read(e.target.files));
+$('#p1Files').addEventListener('change',e=>p1Read(e.target.files));
+$('#p1Replace').addEventListener('click',()=>p1Apply('replace'));
+$('#p1Append').addEventListener('click',()=>p1Apply('append'));
+$('#p1Cancel').addEventListener('click',()=>{ p1Close(); showMsg('ยกเลิกแล้ว ไม่มีอะไรเปลี่ยน','info'); });
+
 $('#logoutBtn').addEventListener('click',e=>{e.preventDefault();AUTH.logout();});
 $('#xlsxBtn').addEventListener('click',exportExcel);
 $('#loadBtn').addEventListener('click',loadMonth);
