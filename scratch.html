@@ -78,6 +78,7 @@
   <div class="card" id="p1Box" style="display:none;border:2px solid var(--brand)">
     <h2>📥 ข้อมูลที่ดึงได้จากโปรเจค 1 — <span id="p1When"></span></h2>
     <p class="hint" id="p1Info" style="margin:0 0 10px"></p>
+    <div class="note-banner" id="p1Warn" style="display:none;background:#fef2f2;border-color:#fecaca;color:#991b1b"></div>
     <table id="p1Tbl">
       <thead><tr><th>ช่องทาง</th><th>แบรนด์</th><th style="text-align:right">ยอดขาย</th><th style="text-align:right">ส่วนลด</th><th style="text-align:right">ออเดอร์</th></tr></thead>
       <tbody></tbody>
@@ -271,12 +272,16 @@ function p1Pick(){
 async function p1Read(fileList){
   const y=Number($('#year').value), m=Number($('#month').value);
   const sheetName=String(m).padStart(2,'0')+'-'+y;
-  const files=[...fileList].filter(f=>{
-    const n=(f.name||'').replace(/^.*[\\/]/,'');
-    return P1_RE.test(n) && n.indexOf('~$')!==0;
-  });
+  const clean=f=>(f.name||'').replace(/^.*[\\/]/,'');
+  const notTemp=n=>n.indexOf('~$')!==0;
+  const files=[...fileList].filter(f=>{ const n=clean(f); return P1_RE.test(n) && notTemp(n); });
+  // ไฟล์ .xlsx ที่ระบบยังไม่รู้จัก (ช่องทาง/แบรนด์ใหม่ หรือไฟล์ซ้ำแบบ "Shopee_FA (1).xlsx")
+  // ต้องฟ้อง ไม่ใช่ข้ามเงียบ ไม่งั้นยอดขาดโดยไม่มีใครรู้
+  const unknown=[...fileList].map(clean)
+    .filter(n=>/\.xlsx$/i.test(n) && notTemp(n) && !P1_RE.test(n));
   if(!files.length){
-    showMsg('ไม่เจอไฟล์ของโปรเจค 1 ในโฟลเดอร์ที่เลือก — ต้องเลือกโฟลเดอร์ output ที่มีไฟล์ชื่อแบบ Shopee_FA.xlsx / Cash_FO.xlsx','err');
+    showMsg('ไม่เจอไฟล์ของโปรเจค 1 ในโฟลเดอร์ที่เลือก — ต้องเลือกโฟลเดอร์ output ที่มีไฟล์ชื่อแบบ Shopee_FA.xlsx / Cash_FO.xlsx'+
+            (unknown.length?' (เจอไฟล์ .xlsx ที่ไม่รู้จัก '+unknown.length+' ไฟล์: '+unknown.slice(0,3).join(', ')+')':''),'err');
     return;
   }
   const out=[]; let skipped=0;
@@ -300,7 +305,7 @@ async function p1Read(fileList){
     return;
   }
   out.sort((a,b)=> a.channel===b.channel ? b.sales-a.sales : a.channel.localeCompare(b.channel));
-  P1_RESULT={year:y, month:m, rows:out, files:files.length, skipped};
+  P1_RESULT={year:y, month:m, rows:out, files:files.length, skipped, unknown};
   p1ShowPreview();
 }
 function p1ShowPreview(){
@@ -318,6 +323,14 @@ function p1ShowPreview(){
   $('#p1Info').innerHTML='อ่านไฟล์ '+R.files+' ไฟล์ · มีข้อมูลเดือนนี้ '+R.rows.length+' รายการ'+
     (R.skipped?' · ข้าม '+R.skipped+' ไฟล์ที่ไม่มีข้อมูลเดือนนี้':'')+
     (cur?' · <b style="color:var(--warn)">ตอนนี้ในตารางมี '+cur+' แถวอยู่แล้ว</b>':'');
+  // เตือนไฟล์แปลกหน้า — ช่องทาง/แบรนด์ใหม่ที่ระบบยังไม่รองรับ จะทำให้ยอดรวมขาดไป
+  const w=$('#p1Warn'), un=R.unknown||[];
+  if(un.length){
+    w.style.display='';
+    w.innerHTML='⚠️ <b>เจอไฟล์ .xlsx ที่ระบบยังไม่รองรับ '+un.length+' ไฟล์ — ยอดรวมอาจไม่ครบ</b><br>'+
+      un.slice(0,6).map(n=>'• '+n).join('<br>')+(un.length>6?'<br>• (และอีก '+(un.length-6)+' ไฟล์)':'')+
+      '<br><span style="font-size:12px">ระบบรู้จักเฉพาะ Shopee / Lazada / TikTok / Cash คู่กับแบรนด์ FA / FO / FF / GB เท่านั้น — ถ้ามีช่องทางหรือแบรนด์ใหม่ ให้แจ้งก่อนใช้ตัวเลขนี้</span>';
+  } else { w.style.display='none'; }
   $('#p1Append').style.display=cur?'':'none';
   $('#p1Box').style.display='';
   $('#p1Box').scrollIntoView({block:'start'});
