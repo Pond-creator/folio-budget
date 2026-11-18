@@ -115,10 +115,10 @@
 
   <div class="grid2">
     <div class="card"><h2>ยอดขายรายเดือน</h2><canvas id="chSales" height="160"></canvas></div>
-    <div class="card"><h2>ค่าโฆษณา vs ยอดขาย</h2><canvas id="chAds" height="160"></canvas></div>
+    <div class="card"><h2>ค่าโฆษณา vs ยอดขาย <span style="font-weight:400;color:var(--muted);font-size:12px">(เฉพาะแบรนด์ที่มียอดขาย — ค่าแอดแบรนด์ Monitor ดูตารางด้านล่าง)</span></h2><canvas id="chAds" height="160"></canvas></div>
   </div>
 
-  <div class="card"><h2>เทียบยอดขายรายปี</h2><canvas id="chYear" height="90"></canvas></div>
+  <div class="card"><h2>เทียบยอดขายรายปี <span style="font-weight:400;color:var(--muted);font-size:12px">(ค่าแอดนับเฉพาะแบรนด์ที่มียอดขาย)</span></h2><canvas id="chYear" height="90"></canvas></div>
 
   <div class="card showhelp">
     <h2>สรุปยอดขาย-กำไร แยกแบรนด์ (<span class="help" tabindex="0">P&amp;L<span class="box">
@@ -209,7 +209,25 @@ function cfgFor(brand,year){ return DB.config.find(c=>c.brand===brand&&String(c.
 
 function sumSales(year,brand){ return DB.sales.filter(r=>String(r.year)===String(year)&&(brand==='ALL'||r.brand===brand)).reduce((a,r)=>a+Number(r.sales||0),0); }
 function sumAds(year,brand){ return DB.ads.filter(r=>String(r.year)===String(year)&&(brand==='ALL'||r.brand===brand)).reduce((a,r)=>a+Number(r.amount||0),0); }
+// ค่าแอดรวมทั้งปีสำหรับกราฟเทียบรายปี — หลักเดียวกับ monthlyAdsForPct (ไม่รวมแบรนด์ monitor ตอนดูทุกแบรนด์)
+function sumAdsForPct(year,brand){
+  if(brand!=='ALL') return sumAds(year,brand);
+  return pnlBrandList().reduce((a,b)=>a+sumAds(year,b),0);
+}
 
+// ค่าแอดรายเดือนสำหรับ "การ์ด KPI + กราฟค่าโฆษณา vs ยอดขาย"
+// ดู "ทุกแบรนด์" = นับเฉพาะแบรนด์ที่มียอดขาย (profit/both) ให้ตรงกับตัวส่วนคือยอดขาย และตรงกับตาราง P&L
+// ค่าแอดแบรนด์ monitor (Premium/LM/Chumjit/Folio More) ไม่นับ เพราะไม่มียอดขายคู่กัน — มีตารางแยกด้านล่างแล้ว
+// เลือกแบรนด์เดียว = ของแบรนด์นั้นตามเดิม (รวมกรณีเลือกแบรนด์ monitor เองโดยตั้งใจ)
+function monthlyAdsForPct(year,brand){
+  if(brand!=='ALL') return monthly(DB.ads,year,brand,'amount');
+  const out=Array(12).fill(0);
+  pnlBrandList().forEach(b=>{
+    const m=monthly(DB.ads,year,b,'amount');
+    for(let i=0;i<12;i++) out[i]+=m[i];
+  });
+  return out;
+}
 function monthly(arr,year,brand,valKey){
   const out=Array(12).fill(0);
   arr.filter(r=>String(r.year)===String(year)&&(brand==='ALL'||r.brand===brand)).forEach(r=>{
@@ -244,9 +262,9 @@ function render(){
   $('#periodLabel').textContent = isFullYear ? `📅 แสดงข้อมูล: ม.ค. – ธ.ค. ${y}`
     : (mFrom===mTo ? `📅 แสดงข้อมูล: ${MONTHS_TH[mFrom-1]} ${y}` : `📅 แสดงข้อมูล: ${MONTHS_TH[mFrom-1]} – ${MONTHS_TH[mTo-1]} ${y}`);
   const salesM=monthly(DB.sales,y,b,'sales');
-  const adsM=monthly(DB.ads,y,b,'amount');
+  const adsM=monthlyAdsForPct(y,b);            // ไม่รวมแบรนด์ monitor ตอนดูทุกแบรนด์
   const salesPrevM=monthly(DB.sales,yPrev,b,'sales');
-  const adsPrevM=monthly(DB.ads,yPrev,b,'amount');
+  const adsPrevM=monthlyAdsForPct(yPrev,b);
 
   const salesRange=salesM.slice(mFrom-1,mTo), adsRange=adsM.slice(mFrom-1,mTo);
   const salesPrevRange=salesPrevM.slice(mFrom-1,mTo), adsPrevRange=adsPrevM.slice(mFrom-1,mTo);
@@ -331,7 +349,7 @@ function drawAds(sales,ads,mFrom=1,mTo=12){
 function drawYear(b){
   const ctx=$('#chYear'); if(chYear)chYear.destroy();
   const ys=years().slice().sort((a,b)=>a-b);
-  const sv=ys.map(y=>sumSales(y,b)), av=ys.map(y=>sumAds(y,b));
+  const sv=ys.map(y=>sumSales(y,b)), av=ys.map(y=>sumAdsForPct(y,b));   // ไม่รวมแบรนด์ monitor ตอนดูทุกแบรนด์
   const pv=ys.map((_,i)=>sv[i]>0?+(av[i]/sv[i]*100).toFixed(1):null);
   const pctPlugin={id:'pct',afterDatasetsDraw(chart){
     const c=chart.ctx, meta=chart.getDatasetMeta(0);
@@ -639,7 +657,8 @@ function exportExcel(){
   const selB=$('#brand').value;
   const ys=years().slice().sort((a,c)=>a-c);
   const yearAoa=[['ปี','ยอดขาย','ค่าแอด','ค่าแอด%']];
-  ys.forEach(yy=>{ const sv=sumSales(yy,selB), av=sumAds(yy,selB); yearAoa.push([yy,sv,av,sv>0?+(av/sv*100).toFixed(1):'']); });
+  // ค่าแอดใช้ sumAdsForPct ให้ตรงกับกราฟบนหน้าจอ (ดูทุกแบรนด์ = ไม่รวมแบรนด์ monitor)
+  ys.forEach(yy=>{ const sv=sumSales(yy,selB), av=sumAdsForPct(yy,selB); yearAoa.push([yy,sv,av,sv>0?+(av/sv*100).toFixed(1):'']); });
   sheets.push({name:'เทียบยอดขายรายปี',aoa:yearAoa});
 
   // 5. ค่าโฆษณาแบรนด์ Monitor (ตามช่วงเดือนที่เลือก)
